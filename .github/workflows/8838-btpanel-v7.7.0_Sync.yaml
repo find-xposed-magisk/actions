@@ -49,10 +49,14 @@ jobs:
     - name: Get Latest Release
       id: latest_release
       run: |
+          wget -O ../latest_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/latest_release.sh
+          bash ../latest_release.sh
 
     - name: Check if release exists and is new
       id: check_release
       run: |
+          wget -O ../check_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/check_release.sh
+          bash ../check_release.sh
 
     - name: Create Release
       id: create_release
@@ -82,3 +86,4 @@ jobs:
           echo "取消了"
           exit 1
         fi
+
