@@ -61,16 +61,9 @@ jobs:
     - name: Create Release
       id: create_release
       if: ${{ env.skip == 'false' && env.skip == 'false' }}
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
-        body: ${{ env.body }}
-      with:
-        tag_name: ${{ env.tag_name }}
-        release_name: 发布 ${{ env.tag_name }}
-        body: ${{ env.body }}
-        draft: false
-        prerelease: false
+      run: |
+        wget -O ../create_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/create_release.sh
+        bash ../create_release.sh
 
     - name: download-update
       # if: ${{ env.skip_download == 'false' && env.skip == 'false' }}
