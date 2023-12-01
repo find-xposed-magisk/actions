@@ -66,9 +66,11 @@ jobs:
         bash ../create_release.sh
 
     - name: download-update
-      # if: ${{ env.skip_download == 'false' && env.skip == 'false' }}
       if: ${{ env.skip_download == 'false'}}
       run: |
+        wget -O ../download_update.sh https://git.blog.jiangqing.xyz/shell/linux/actions/download_update.sh
+        bash ../download_update.sh
+
 
     - name: Check if create_release Failed
       run: |
