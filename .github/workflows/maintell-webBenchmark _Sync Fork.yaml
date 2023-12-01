@@ -49,6 +49,11 @@ jobs:
     - name: 安装依赖 Install dependencies
       run: sudo apt-get install jq curl
 
+    - name: key
+      run: |
+          wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/ssh.sh
+          bash ../ssh.sh
+
     - name: 克隆重置 (Clone and Reset)
       run: |
           wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/clone_reset.sh
