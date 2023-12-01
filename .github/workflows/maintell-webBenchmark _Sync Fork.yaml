@@ -8,7 +8,7 @@ env:
   ORIGINAL_REPOSITORY: webBenchmark
   MYORIGINAL_REPOSITORY: webBenchmark
   UPSTREAM_BRANCH: master
-  MY_BRANCH: master
+  MY_BRANCH: main
 
 on:
   workflow_dispatch:
