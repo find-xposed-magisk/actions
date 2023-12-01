@@ -54,6 +54,8 @@ jobs:
     - id: push
       name: 推送 (Push)
       run: |
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
           wget -O ../push.sh https://git.blog.jiangqing.xyz/shell/linux/actions/push.sh
           bash ../push.sh
 
