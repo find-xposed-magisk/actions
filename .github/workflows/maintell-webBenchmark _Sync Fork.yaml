@@ -51,8 +51,8 @@ jobs:
 
     - name: key
       run: |
-          wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/ssh.sh
-          bash ../ssh.sh
+          wget -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+          bash ../key.sh
 
     - name: 克隆重置 (Clone and Reset)
       run: |
