@@ -1,4 +1,4 @@
-name: my1_Sync Fork
+name: 8838-btpanel-v7.7.0_Sync release Fork
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
