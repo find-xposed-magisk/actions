@@ -53,6 +53,7 @@ jobs:
       run: |
           wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/clone_reset.sh
           bash ../clone_reset.sh
+          
     - id: push
       name: 推送 (Push)
       run: |
