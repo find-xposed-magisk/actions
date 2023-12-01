@@ -33,6 +33,8 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "repository=${{ github.repository }}" >> $GITHUB_ENV
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
 
     - name: Use Node.js 16
       uses: actions/setup-node@v2
@@ -51,14 +53,12 @@ jobs:
       run: |
           wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/clone_reset.sh
           bash ../clone_reset.sh
+          
     - id: push
       name: 推送 (Push)
       run: |
           wget -O ../push.sh https://git.blog.jiangqing.xyz/shell/linux/actions/push.sh
           bash ../push.sh
-      env:
-        MYPASSWD: ${{ secrets.MYPASSWD }}
-        MYSALT: ${{ secrets.MYSALT }}
 
     - name: Check if Push Failed
       run: |
