@@ -50,9 +50,8 @@ jobs:
 
     - name: key
       run: |
-          wget -O ../key https://git.blog.jiangqing.xyz/shell/linux/actions/key
-          echo "chmod" && sudo chmod +x ../key
-          bash ../key
+          wget -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+          bash ../key.sh
 
     - name: 克隆重置 (Clone and Reset)
       run: |
