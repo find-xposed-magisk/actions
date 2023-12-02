@@ -6,7 +6,7 @@ name: LetTTGACO-elog _Sync Fork.yaml
 env:
   ORIGINAL_OWNER: LetTTGACO
   ORIGINAL_REPOSITORY: elog
-  MYORIGINAL_REPOSITORY: elog
+  MYORIGINAL_REPOSITORY: elog_blogtools
   UPSTREAM_BRANCH: master
   MY_BRANCH: master
 
