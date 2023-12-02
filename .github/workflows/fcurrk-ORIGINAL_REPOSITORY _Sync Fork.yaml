@@ -1,12 +1,12 @@
 #https://github.com/fcurrk/reinstall
-name: fcurrk-ORIGINAL_REPOSITORY _Sync Fork.yaml
+name: fcurrk-reinstall _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
   ORIGINAL_OWNER: fcurrk
   ORIGINAL_REPOSITORY: reinstall
-  MYORIGINAL_REPOSITORY: reinstall
+  MYORIGINAL_REPOSITORY: DD_reinstall
   UPSTREAM_BRANCH: master
   MY_BRANCH: master
 
