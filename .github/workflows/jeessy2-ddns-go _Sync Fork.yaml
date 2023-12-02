@@ -1,12 +1,12 @@
 #https://github.com/jeessy2/ddns-go
-name: jeessy2-ddns _Sync Fork.yaml
+name: jeessy2-ddns-go _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
   ORIGINAL_OWNER: jeessy2
-  ORIGINAL_REPOSITORY: ddns
-  MYORIGINAL_REPOSITORY: ddns
+  ORIGINAL_REPOSITORY: ddns-go
+  MYORIGINAL_REPOSITORY: ddns-go
   UPSTREAM_BRANCH: master
   MY_BRANCH: master
 
