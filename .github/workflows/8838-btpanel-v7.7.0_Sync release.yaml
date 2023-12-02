@@ -32,6 +32,8 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "repository=${{ github.repository }}" >> $GITHUB_ENV
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
 
     - name: Use Node.js 16
       uses: actions/setup-node@v2
@@ -46,10 +48,16 @@ jobs:
     - name: 安装依赖 Install dependencies
       run: sudo apt-get install jq curl
 
+    - name: key
+      run: |
+          wget -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+          bash ../key.sh
+
     - name: 克隆重置 (Clone and Reset)
       run: |
           wget -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/clone_reset.sh
           bash ../clone_reset.sh
+          
     - id: push
       name: 推送 (Push)
       run: |
