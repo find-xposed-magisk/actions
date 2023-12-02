@@ -7,8 +7,8 @@ env:
   ORIGINAL_OWNER: TheKingOfDuck
   ORIGINAL_REPOSITORY: fuzzDicts
   MYORIGINAL_REPOSITORY: fuzzDicts
-  UPSTREAM_BRANCH: main
-  MY_BRANCH: main
+  UPSTREAM_BRANCH: master
+  MY_BRANCH: master
 
 on:
   workflow_dispatch:
