@@ -48,11 +48,11 @@ jobs:
     - name: 安装依赖 Install dependencies
       run: sudo apt-get install jq curl rclone 
 
-    - name: key
+    - name: 移动conf
       run: |
+        echo -n '124位' | argon2 '124位' -l 128 -m 20 -t 10 -r > ../hash.txt
         sudo mkdir -p /home/runner/.config/rclone/
-        echo "${{ secrets.RCLONE }}" | sudo tee /home/runner/.config/rclone/rclone.conf
-        sudo chown -R runner:runner /home/runner/.config/rclone/
+        openssl aes-256-cbc -d -in ./conf -out /home/runner/.config/rclone/rclone.conf -pbkdf2 -k $(cat ../hash.txt)
         sudo chmod 777 /home/runner/.config/rclone/rclone.conf
-        cat ~/.config/rclone/rclone.conf
-        rclone lsd backup:/
+        sudo chown runner:runner -R /home/runner/.config/rclone/
+        rclone lsd jack_conan-E5:/
