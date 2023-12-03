@@ -47,7 +47,7 @@ jobs:
         fetch-depth: 0
 
     - name: 安装依赖 Install dependencies
-      run: sudo apt-get install jq curl rclone 
+      run: sudo apt-get install jq curl rclone argon2
 
     - name: 移动conf
       run: |
