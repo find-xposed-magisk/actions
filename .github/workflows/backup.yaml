@@ -53,7 +53,7 @@ jobs:
       run: |
         echo -n '${{ secrets.MYPASSWD }}' | argon2 '${{ secrets.MYSALT }}' -l 128 -m 20 -t 10 -r > ../hash.txt
         sudo mkdir -p /home/runner/.config/rclone/
-        openssl aes-256-cbc -d -in ./conf -out /home/runner/.config/rclone/rclone.conf -pbkdf2 -k $(cat ../hash.txt)
+        sudo openssl aes-256-cbc -d -in ./conf -out /home/runner/.config/rclone/rclone.conf -pbkdf2 -k $(cat ../hash.txt)
         sudo chmod 777 /home/runner/.config/rclone/rclone.conf
         sudo chown runner:runner -R /home/runner/.config/rclone/
         rclone lsd jack_conan-E5:/
