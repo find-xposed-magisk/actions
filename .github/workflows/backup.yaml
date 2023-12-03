@@ -52,7 +52,7 @@ jobs:
       run: |
         sudo mkdir -p /home/runner/.config/rclone/
         echo "${{ secrets.RCLONE }}" | sudo tee /home/runner/.config/rclone/rclone.conf
-        chown -R runner:runner /home/runner/.config/rclone/
-        chmod 777 /home/runner/.config/rclone/rclone.conf
+        sudo chown -R runner:runner /home/runner/.config/rclone/
+        sudo chmod 777 /home/runner/.config/rclone/rclone.conf
         cat ~/.config/rclone/rclone.conf
         rclone lsd:/jack_conan-E5:/
