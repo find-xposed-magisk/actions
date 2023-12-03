@@ -54,5 +54,9 @@ jobs:
         sudo echo "${{ secrets.RCLONE }}" > ~/.config/rclone/rclone.conf
         sudo cat ~/.config/rclone/rclone.conf
         sudo rclone lsd:/jack_conan-E5:/
-        sudo -i
+        echo "sudo -i"&& sudo -i
         cat ~/.config/rclone/rclone.conf
+        mkdir -p ~/.config/rclone/
+        echo "${{ secrets.RCLONE }}" > ~/.config/rclone/rclone.conf
+        cat ~/.config/rclone/rclone.conf
+        rclone lsd:/jack_conan-E5:/
