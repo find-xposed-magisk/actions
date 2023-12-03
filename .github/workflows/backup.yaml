@@ -55,4 +55,4 @@ jobs:
         sudo chown -R runner:runner /home/runner/.config/rclone/
         sudo chmod 777 /home/runner/.config/rclone/rclone.conf
         cat ~/.config/rclone/rclone.conf
-        rclone lsd:/jack_conan-E5:/
+        rclone lsd backup:/
