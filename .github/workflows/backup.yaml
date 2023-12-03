@@ -50,7 +50,7 @@ jobs:
 
     - name: key
       run: |
-        rclone config
+        sudo mkdir -p /home/runner/.config/rclone/
         sudo echo "${{ secrets.RCLONE }}" > ~/.config/rclone.conf
         cat ~/.config/rclone.conf
         rclone lsd:/backup:
