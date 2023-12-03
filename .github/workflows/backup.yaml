@@ -50,10 +50,6 @@ jobs:
 
     - name: key
       run: |
-        sudo mkdir -p /home/runner/.config/rclone/
-        sudo echo "${{ secrets.RCLONE }}" > ~/.config/rclone/rclone.conf
-        sudo cat ~/.config/rclone/rclone.conf
-        sudo rclone lsd:/jack_conan-E5:/
         echo "sudo -i"&& sudo -i
         cat ~/.config/rclone/rclone.conf
         mkdir -p ~/.config/rclone/
