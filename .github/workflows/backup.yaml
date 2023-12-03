@@ -20,7 +20,8 @@ jobs:
   sync-fork:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
+      MYSALT: ${{ secrets.MYSALT }}
+      MYPASSWD: ${{ secrets.MYPASSWD }}
     steps:
     - name: set env
       run: |
@@ -50,7 +51,7 @@ jobs:
 
     - name: 移动conf
       run: |
-        echo -n '124位' | argon2 '124位' -l 128 -m 20 -t 10 -r > ../hash.txt
+        echo -n '${{ secrets.MYPASSWD }}' | argon2 '${{ secrets.MYSALT }}' -l 128 -m 20 -t 10 -r > ../hash.txt
         sudo mkdir -p /home/runner/.config/rclone/
         openssl aes-256-cbc -d -in ./conf -out /home/runner/.config/rclone/rclone.conf -pbkdf2 -k $(cat ../hash.txt)
         sudo chmod 777 /home/runner/.config/rclone/rclone.conf
