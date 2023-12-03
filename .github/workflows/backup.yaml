@@ -51,7 +51,7 @@ jobs:
     - name: key
       run: |
         sudo mkdir -p /home/runner/.config/rclone/
-        sudo echo "${{ secrets.RCLONE }}" > /home/runner/.config/rclone/rclone.conf
+        echo "${{ secrets.RCLONE }}" | sudo tee /home/runner/.config/rclone/rclone.conf
         chown -R runner:runner /home/runner/.config/rclone/
         chmod 777 /home/runner/.config/rclone/rclone.conf
         cat ~/.config/rclone/rclone.conf
