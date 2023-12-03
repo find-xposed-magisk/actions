@@ -50,6 +50,6 @@ jobs:
 
     - name: key
       run: |
-        echo "${{ secrets.RCLONE }}" > ~/.config/rclone.conf
+        sudo echo "${{ secrets.RCLONE }}" > ~/.config/rclone.conf
         cat ~/.config/rclone.conf
         rclone lsd:/backup:
