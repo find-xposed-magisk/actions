@@ -9,7 +9,7 @@ env:
   MYORIGINAL_REPOSITORY: x-ui
   UPSTREAM_BRANCH: main
   MY_BRANCH: main
-  DOCKER_BUILD: yes
+  DOCKER_BUILD: no
 
 on:
   workflow_dispatch:
