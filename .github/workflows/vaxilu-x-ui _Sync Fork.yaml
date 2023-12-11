@@ -1,5 +1,5 @@
 #https://github.com/vaxilu/x-ui
-name: vaxilu-x-ui _Sync Fork.yaml
+name: (D)vaxilu-x-ui _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
@@ -9,7 +9,7 @@ env:
   MYORIGINAL_REPOSITORY: x-ui
   UPSTREAM_BRANCH: main
   MY_BRANCH: main
-  DOCKER_BUILD: no
+  DOCKER_BUILD: YES
 
 on:
   workflow_dispatch:
