@@ -49,12 +49,20 @@ jobs:
     - name: 安装依赖 Install dependencies
       run: sudo apt-get install jq curl rclone argon2
 
-    - name: rclone
+    - name: key
       run: |
-        echo -n '${{ secrets.MYPASSWD }}' | argon2 '${{ secrets.MYSALT }}' -l 128 -m 20 -t 10 -r > ../hash.txt
-        sudo mkdir -p /home/runner/.config/rclone/
-        sudo openssl aes-256-cbc -d -in ./conf -out /home/runner/.config/rclone/rclone.conf -pbkdf2 -k $(cat ../hash.txt)
-        sudo chmod 777 /home/runner/.config/rclone/rclone.conf
-        sudo chown runner:runner -R /home/runner/.config/rclone/
-        rclone sync ./ backup:/git备份/actions
-        rclone ls backup:/git备份/actions
+          wget --no-check-certificate -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+          bash ../key.sh
+
+    - name: Clone
+      run: |
+          git clone git@github.com:find-xposed-magisk/youdao.git -b main /youdao
+          if [ $? -ne 0 ]; then
+            echo "克隆失败：无法克隆仓库"
+            exit 1
+          fi
+          echo "克隆完成 (Cloning completed)"
+
+    - name: rclone_backup
+      run: |
+        bash ./youdao/shell/linux/actions/rclone_backup.sh
