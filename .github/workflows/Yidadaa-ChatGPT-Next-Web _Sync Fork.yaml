@@ -6,7 +6,7 @@ name: Yidadaa-ChatGPT-Next-Web _Sync Fork.yaml
 env:
   ORIGINAL_OWNER: Yidadaa
   ORIGINAL_REPOSITORY: ChatGPT-Next-Web
-  MYORIGINAL_REPOSITORY: ChatGPT-Next-Web
+  MYORIGINAL_REPOSITORY: Yidadaa_ChatGPT-Next-Web
   UPSTREAM_BRANCH: main
   MY_BRANCH: main
 
