@@ -33,6 +33,7 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "repository=${{ github.repository }}" >> $GITHUB_ENV
+          echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
           echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
           echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
 
