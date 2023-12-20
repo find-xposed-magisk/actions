@@ -27,7 +27,7 @@ jobs:
     steps:
     - name: set env
       run: |
-          echo "HIFLOW_PUSH1=${{ env.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
+          echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
           echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
           echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
           echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
@@ -88,7 +88,7 @@ jobs:
     steps:
     - name: set env
       run: |
-          echo "HIFLOW_PUSH1=${{ env.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
+          echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
           echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
           echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
           echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
