@@ -1,5 +1,5 @@
 #https://github.com/pandora-next/deploy
-name: pandora-next-deploy _Sync Fork.yaml
+name: (D)pandora-next-deploy _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
@@ -9,6 +9,7 @@ env:
   MYORIGINAL_REPOSITORY: pandora-next
   UPSTREAM_BRANCH: master
   MY_BRANCH: main
+  DOCKER_BUILD: YES
 
 on:
   workflow_dispatch:
@@ -31,10 +32,11 @@ jobs:
           echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
           echo "UPSTREAM_BRANCH=${{ env.UPSTREAM_BRANCH }}" >> $GITHUB_ENV
           echo "MY_BRANCH=${{ env.MY_BRANCH }}" >> $GITHUB_ENV
-          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "DOCKER_BUILD=${{ env.DOCKER_BUILD }}" >> $GITHUB_ENV
           echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "repository=${{ github.repository }}" >> $GITHUB_ENV
           echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
+          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
           echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
 
@@ -91,11 +93,13 @@ jobs:
           echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
           echo "UPSTREAM_BRANCH=${{ env.UPSTREAM_BRANCH }}" >> $GITHUB_ENV
           echo "MY_BRANCH=${{ env.MY_BRANCH }}" >> $GITHUB_ENV
-          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "DOCKER_BUILD=${{ env.DOCKER_BUILD }}" >> $GITHUB_ENV
           echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "repository=${{ github.repository }}" >> $GITHUB_ENV
           echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
-
+          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
     - name: Use Node.js 16
       uses: actions/setup-node@v2
       with:
