@@ -10,7 +10,7 @@ env:
   MYORIGINAL_REPOSITORY: sing-box
   UPSTREAM_BRANCH: dev-next
   MY_BRANCH: dev-next
-  DOCKER_BUILD: YES
+  DOCKER_BUILD: NO
 
 on:
   workflow_dispatch:
