@@ -11,7 +11,7 @@ env:
   MYORIGINAL_REPOSITORY: mdserver-web
   UPSTREAM_BRANCH: master
   MY_BRANCH: main
-  DOCKER_BUILD: NO
+  DOCKER_BUILD: YES
 
 on:
   workflow_dispatch:
