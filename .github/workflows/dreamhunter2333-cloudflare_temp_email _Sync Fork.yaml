@@ -9,7 +9,7 @@ env:
   ORIGINAL_OWNER: dreamhunter2333
   ORIGINAL_REPOSITORY: cloudflare_temp_email
   MYORIGINAL_REPOSITORY: cloudflare_temp_email
-  UPSTREAM_BRANCH: master
+  UPSTREAM_BRANCH: main
   MY_BRANCH: main
   DOCKER_BUILD: NO
 
