@@ -1,6 +1,6 @@
 # https://github.com/cf-pages/Telegraph-Image
 # https://github.com/find-xposed-magisk/Telegraph-Image
-# 代理池
+# tg图床
 name: cf-pages-Telegraph-Image _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
