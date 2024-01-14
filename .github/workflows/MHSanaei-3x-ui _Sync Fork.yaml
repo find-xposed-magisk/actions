@@ -8,7 +8,7 @@ name: MHSanaei-3x-ui _Sync Fork.yaml
 env:
   ORIGINAL_OWNER: MHSanaei
   ORIGINAL_REPOSITORY: 3x-ui
-  MYORIGINAL_REPOSITORY: 3x-ui
+  MYORIGINAL_REPOSITORY: x-ui
   UPSTREAM_BRANCH: main
   MY_BRANCH: 3x-ui
   DOCKER_BUILD: NO
