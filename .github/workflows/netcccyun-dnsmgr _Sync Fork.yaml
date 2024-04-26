@@ -19,7 +19,7 @@ on:
     types: [1]
   schedule:
     - cron: '0 */2 * * *'
-
+  
 jobs:
   sync-fork:
     runs-on: ubuntu-latest
@@ -46,7 +46,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
@@ -68,16 +68,7 @@ jobs:
     - id: push
       name: 推送 (Push)
       run: |
-          wget --no-c
-    - name: Check if Push Failed
-      run: |
-        if [[ "${{ steps.push.outcome }}" == "failure" ]]; then
-          echo "失败退出了"
-          exit 1
-        elif [[ "${{ steps.push.outcome }}" == "cancelled" ]]; then
-          echo "取消了"
-          exit 1
-        fiheck-certificate -O ../push.sh https://git.blog.jiangqing.xyz/shell/linux/actions/push.sh
+          wget --no-check-certificate -O ../push.sh https://git.blog.jiangqing.xyz/shell/linux/actions/push.sh
           bash ../push.sh
 
     - name: Check if Push Failed
@@ -111,13 +102,11 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
           echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
-
-
     - name: Use Node.js 16
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
