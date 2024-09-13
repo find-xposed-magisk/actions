@@ -17,8 +17,8 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [1]
-  # schedule:
-  #   - cron: '0 */2 * * *'
+  schedule:
+    - cron: '0 */2 * * *'
   
 jobs:
   sync-fork:
