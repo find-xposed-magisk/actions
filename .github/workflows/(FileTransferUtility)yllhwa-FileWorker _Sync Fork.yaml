@@ -1,7 +1,7 @@
 # https://github.com/find-xposed-magisk/FileTransferUtility
 # https://github.com/yllhwa/FileWorker
 # 文件传输 - 合集
-name: [FileTransferUtility]yllhwa-FileWorker _Sync Fork.yaml
+name: (FileTransferUtility)yllhwa-FileWorker _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
