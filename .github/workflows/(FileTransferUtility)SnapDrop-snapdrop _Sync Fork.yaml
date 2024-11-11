@@ -9,7 +9,7 @@ env:
   ORIGINAL_OWNER: SnapDrop
   ORIGINAL_REPOSITORY: snapdrop
   MYORIGINAL_REPOSITORY: FileTransferUtility
-  UPSTREAM_BRANCH: main
+  UPSTREAM_BRANCH: master
   MY_BRANCH: SnapDrop/snapdrop
   DOCKER_BUILD: NO
 
