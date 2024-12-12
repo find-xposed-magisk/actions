@@ -28,6 +28,8 @@ jobs:
     steps:
     - name: set env
       run: |
+          echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
+          echo "MYPUSH1=${{ secrets.MYPUSH1 }}" >> $GITHUB_ENV
           echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
           echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
           echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
@@ -89,6 +91,8 @@ jobs:
     steps:
     - name: set env
       run: |
+          echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
+          echo "MYPUSH1=${{ secrets.MYPUSH1 }}" >> $GITHUB_ENV
           echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
           echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
           echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
