@@ -133,6 +133,7 @@ jobs:
           bash ../check_release.sh
 
     - name: Create Release
+    # 这里面有个无附件构建docker逻辑 ，特点条件仓库出发
       id: create_release
       if: ${{ env.skip == 'false' && env.skip == 'false' }}
       run: |
@@ -140,6 +141,7 @@ jobs:
         bash ../create_release.sh
 
     - name: download-update
+    # 通知构建逻辑在这里 DOCKER_BUILD
       if: ${{ env.skip_download == 'false'}}
       run: |
         wget --no-check-certificate -O ../download_update.sh https://git.blog.jiangqing.xyz/shell/linux/actions/download_update.sh
