@@ -10,7 +10,7 @@ env:
   ORIGINAL_OWNER: netcccyun
   ORIGINAL_REPOSITORY: dnsmgr
   MYORIGINAL_REPOSITORY: dns-ssl-manager
-  UPSTREAM_BRANCH: master
+  UPSTREAM_BRANCH: main
   MY_BRANCH: netcccyun/dnsmgr
   DOCKER_BUILD: NO
 
