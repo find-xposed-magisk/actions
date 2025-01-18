@@ -1,12 +1,14 @@
-#https://github.com/naiba/nezha
-name: (D)naiba-nezha _Sync Fork.yaml
+# https://github.com/midoks/mdserver-web
+# https://github.com/find-xposed-magisk/mdserver-web
+# 面板
+name: (构建docker))midoks-mdserver-web _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: naiba
-  ORIGINAL_REPOSITORY: nezha
-  MYORIGINAL_REPOSITORY: nezha
+  ORIGINAL_OWNER: midoks
+  ORIGINAL_REPOSITORY: mdserver-web
+  MYORIGINAL_REPOSITORY: mdserver-web
   UPSTREAM_BRANCH: master
   MY_BRANCH: main
   DOCKER_BUILD: YES

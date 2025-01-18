@@ -1,13 +1,14 @@
-#https://github.com/pandora-next/deploy
-name: (RM)(构建docker))pandora-next-deploy _Sync Fork.yaml
+#https://github.com/vaxilu/x-ui
+#https://github.com/FranzKafkaYu/x-ui/ 改版
+name: (构建docker))vaxilu-x-ui _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: pandora-next
-  ORIGINAL_REPOSITORY: deploy
-  MYORIGINAL_REPOSITORY: pandora-next
-  UPSTREAM_BRANCH: master
+  ORIGINAL_OWNER: vaxilu
+  ORIGINAL_REPOSITORY: x-ui
+  MYORIGINAL_REPOSITORY: x-ui
+  UPSTREAM_BRANCH: main
   MY_BRANCH: main
   DOCKER_BUILD: YES
 
@@ -15,8 +16,8 @@ on:
   workflow_dispatch:
   repository_dispatch:
     types: [1]
-  # schedule:
-  #   - cron: '0 */2 * * *'
+  schedule:
+    - cron: '0 */2 * * *'
 
 jobs:
   sync-fork:
@@ -104,6 +105,8 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
           echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
+
+
     - name: Use Node.js 16
       uses: actions/setup-node@v2
       with:

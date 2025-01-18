@@ -1,16 +1,14 @@
-# https://github.com/MetaCubeX/mihomo/
-# https://github.com/find-xposed-magisk/clash-meta
-# clash-meta
-name: (D)MetaCubeX-mihomo _Sync Fork.yaml
+#https://github.com/tindy2013/subconverter
+name: (构建docker))tindy2013-subconverter _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: MetaCubeX
-  ORIGINAL_REPOSITORY: mihomo
-  MYORIGINAL_REPOSITORY: clash-meta
-  UPSTREAM_BRANCH: main
-  MY_BRANCH: main
+  ORIGINAL_OWNER: tindy2013
+  ORIGINAL_REPOSITORY: subconverter
+  MYORIGINAL_REPOSITORY: subconverter
+  UPSTREAM_BRANCH: master
+  MY_BRANCH: master
   DOCKER_BUILD: YES
 
 on:

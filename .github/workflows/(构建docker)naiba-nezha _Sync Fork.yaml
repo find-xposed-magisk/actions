@@ -1,14 +1,14 @@
-#https://github.com/tindy2013/subconverter
-name: (D)tindy2013-subconverter _Sync Fork.yaml
+#https://github.com/naiba/nezha
+name: (构建docker))naiba-nezha _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: tindy2013
-  ORIGINAL_REPOSITORY: subconverter
-  MYORIGINAL_REPOSITORY: subconverter
+  ORIGINAL_OWNER: naiba
+  ORIGINAL_REPOSITORY: nezha
+  MYORIGINAL_REPOSITORY: nezha
   UPSTREAM_BRANCH: master
-  MY_BRANCH: master
+  MY_BRANCH: main
   DOCKER_BUILD: YES
 
 on:

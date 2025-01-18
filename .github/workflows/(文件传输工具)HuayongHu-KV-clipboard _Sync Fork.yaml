@@ -1,17 +1,17 @@
-# https://github.com/midoks/mdserver-web
-# https://github.com/find-xposed-magisk/mdserver-web
-# 面板
-name: (D)midoks-mdserver-web _Sync Fork.yaml
+# https://github.com/find-xposed-magisk/FileTransferUtility
+# https://github.com/HuayongHu/KV-clipboard
+# 文件传输 - 合集
+name: (文件传输工具)HuayongHu- KV-clipboard _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: midoks
-  ORIGINAL_REPOSITORY: mdserver-web
-  MYORIGINAL_REPOSITORY: mdserver-web
-  UPSTREAM_BRANCH: master
-  MY_BRANCH: main
-  DOCKER_BUILD: YES
+  ORIGINAL_OWNER: HuayongHu
+  ORIGINAL_REPOSITORY: KV-clipboard
+  MYORIGINAL_REPOSITORY: FileTransferUtility
+  UPSTREAM_BRANCH: main
+  MY_BRANCH: HuayongHu/KV-clipboard
+  DOCKER_BUILD: NO
 
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ on:
     types: [1]
   schedule:
     - cron: '0 */2 * * *'
-
+  
 jobs:
   sync-fork:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
@@ -110,7 +110,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:

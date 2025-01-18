@@ -1,23 +1,25 @@
-#https://github.com/pandora-next/deploy
-name: (RM)(构建docker))pandora-next-deploy _Sync Fork.yaml
+# https://github.com/find-xposed-magisk/FileTransferUtility
+# https://github.com/SnapDrop/snapdrop
+# 文件传输 - 合集
+name: (文件传输工具)SnapDrop-snapdrop _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: pandora-next
-  ORIGINAL_REPOSITORY: deploy
-  MYORIGINAL_REPOSITORY: pandora-next
+  ORIGINAL_OWNER: SnapDrop
+  ORIGINAL_REPOSITORY: snapdrop
+  MYORIGINAL_REPOSITORY: FileTransferUtility
   UPSTREAM_BRANCH: master
-  MY_BRANCH: main
-  DOCKER_BUILD: YES
+  MY_BRANCH: SnapDrop/snapdrop
+  DOCKER_BUILD: NO
 
 on:
   workflow_dispatch:
   repository_dispatch:
     types: [1]
-  # schedule:
-  #   - cron: '0 */2 * * *'
-
+  schedule:
+    - cron: '0 */2 * * *'
+  
 jobs:
   sync-fork:
     runs-on: ubuntu-latest
@@ -46,7 +48,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:
@@ -108,7 +110,7 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 16
-        
+
     - name: Checkout
       uses: actions/checkout@v2
       with:

@@ -1,13 +1,14 @@
-#https://github.com/vaxilu/x-ui
-#https://github.com/FranzKafkaYu/x-ui/ 改版
-name: (D)vaxilu-x-ui _Sync Fork.yaml
+# https://github.com/MetaCubeX/mihomo/
+# https://github.com/find-xposed-magisk/clash-meta
+# clash-meta
+name: (构建docker))MetaCubeX-mihomo _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
 env:
-  ORIGINAL_OWNER: vaxilu
-  ORIGINAL_REPOSITORY: x-ui
-  MYORIGINAL_REPOSITORY: x-ui
+  ORIGINAL_OWNER: MetaCubeX
+  ORIGINAL_REPOSITORY: mihomo
+  MYORIGINAL_REPOSITORY: clash-meta
   UPSTREAM_BRANCH: main
   MY_BRANCH: main
   DOCKER_BUILD: YES
@@ -105,8 +106,6 @@ jobs:
           echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
           echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
           echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
-
-
     - name: Use Node.js 16
       uses: actions/setup-node@v2
       with:
