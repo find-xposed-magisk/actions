@@ -111,22 +111,63 @@ jobs:
           git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
         }
 
+        # 推送单个引用函数（带重试机制）
+        push_ref() {
+          local repo_name=$1
+          local ref=$2
+          local max_retries=3
+          local retry_count=0
+          local success=false
+          
+          while [ $retry_count -lt $max_retries ] && [ "$success" = "false" ]; do
+            if [ $retry_count -gt 0 ]; then
+              echo "第 $((retry_count + 1)) 次尝试推送 / Retry attempt $((retry_count + 1)) for $ref"
+              sleep $((retry_count * 5))  # 递增等待时间
+            fi
+            
+            if timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref" 2>&1; then
+              success=true
+              echo "✅ 成功推送 / Successfully pushed: $ref"
+              break
+            else
+              retry_count=$((retry_count + 1))
+              if [ $retry_count -lt $max_retries ]; then
+                echo "⚠️ 推送失败，将重试 / Push failed, will retry: $ref"
+              fi
+            fi
+          done
+          
+          if [ "$success" = "false" ]; then
+            echo "❌ 推送失败（已重试 $max_retries 次）/ Push failed after $max_retries retries: $ref"
+            return 1
+          fi
+          
+          return 0
+        }
+
         # 同步代码函数 - 只同步分支代码
         sync_code() {
           local repo_name=$1
           local repo_path=$2
           local ret=0
+          local failed_refs=""
           
           echo "推送分支代码 / Pushing branch code..."
           get_visible_refs "heads" | while read ref; do
             echo "推送分支 / Pushing branch: $ref"
-            if ! timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref"; then
-              echo "❌ 推送失败 / Push failed for $ref"
+            if ! push_ref "$repo_name" "$ref"; then
+              failed_refs="$failed_refs\n$ref"
               ret=1
-              break
+              continue  # 继续处理其他分支，而不是立即退出
             fi
-            echo "✅ 成功推送分支 / Successfully pushed branch: $ref"
           done
+          
+          if [ -n "$failed_refs" ]; then
+            echo "----------------------------------------"
+            echo "❌ 以下分支推送失败 / Following branches failed to push:"
+            echo -e "$failed_refs"
+            echo "----------------------------------------"
+          fi
           
           return $ret
         }
@@ -136,17 +177,24 @@ jobs:
           local repo_name=$1
           local repo_path=$2
           local ret=0
+          local failed_refs=""
           
           echo "推送标签 / Pushing tags..."
           get_visible_refs "tags" | while read ref; do
             echo "推送标签 / Pushing tag: $ref"
-            if ! timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref"; then
-              echo "❌ 推送失败 / Push failed for $ref"
+            if ! push_ref "$repo_name" "$ref"; then
+              failed_refs="$failed_refs\n$ref"
               ret=1
-              break
+              continue  # 继续处理其他标签，而不是立即退出
             fi
-            echo "✅ 成功推送标签 / Successfully pushed tag: $ref"
           done
+          
+          if [ -n "$failed_refs" ]; then
+            echo "----------------------------------------"
+            echo "❌ 以下标签推送失败 / Following tags failed to push:"
+            echo -e "$failed_refs"
+            echo "----------------------------------------"
+          fi
           
           return $ret
         }
