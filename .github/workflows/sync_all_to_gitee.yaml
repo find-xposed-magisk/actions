@@ -121,10 +121,15 @@ jobs:
           if [ $ret -eq 0 ]; then
             echo "===> 步骤 3: 推送到 Gitee / Step 3: Pushing to Gitee"
             echo "推送所有分支和标签 / Pushing all branches and tags..."
-            timeout 300 git push --mirror "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" || {
-              echo "❌ 推送超时 / Push timeout for $repo_name"
-              ret=1
-            }
+            # 排除 pull request 引用
+            git for-each-ref --format='%(refname)' refs/heads/* refs/tags/* | \
+            while read ref; do
+              timeout 300 git push "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref" || {
+                echo "❌ 推送失败 / Push failed for $ref"
+                ret=1
+                break
+              }
+            done
             [ $ret -eq 0 ] && echo "✅ 成功推送到 Gitee / Successfully pushed to Gitee"
           fi
           
@@ -173,21 +178,40 @@ jobs:
               echo "ℹ️ 发布版本已存在于 Gitee / Release $tag_name already exists on Gitee"
             else
               echo "创建新发布版本 / Creating new release $tag_name..."
-              local create_result=$(curl -s -X POST -H "Authorization: token $GITEE_TOKEN" \
-                "https://gitee.com/api/v5/repos/${GITEE_USERNAME}/${repo_name##*/}/releases" \
-                -H "Content-Type: application/json" \
-                -d "{
-                  \"tag_name\": \"${tag_name}\",
-                  \"name\": \"${name}\",
-                  \"body\": \"${body}\",
-                  \"prerelease\": ${prerelease}
-                }")
+              # 添加重试机制
+              local max_retries=3
+              local retry_count=0
+              local create_success=false
               
-              if [ "$(echo "$create_result" | jq -r '.id')" = "null" ]; then
-                echo "❌ 创建发布版本失败 / Failed to create release: $(echo "$create_result" | jq -r '.message')"
+              while [ $retry_count -lt $max_retries ] && [ "$create_success" = "false" ]; do
+                [ $retry_count -gt 0 ] && echo "第 $retry_count 次重试 / Retry attempt $retry_count..."
+                
+                local create_result=$(curl -s -X POST -H "Authorization: token $GITEE_TOKEN" \
+                  "https://gitee.com/api/v5/repos/${GITEE_USERNAME}/${repo_name##*/}/releases" \
+                  -H "Content-Type: application/json" \
+                  -d "{
+                    \"tag_name\": \"${tag_name}\",
+                    \"name\": \"${name}\",
+                    \"body\": \"${body}\",
+                    \"prerelease\": ${prerelease}
+                  }")
+                
+                if [ -n "$create_result" ] && [ "$(echo "$create_result" | jq -r '.id')" != "null" ]; then
+                  create_success=true
+                  echo "✅ 成功创建发布版本 / Successfully created release $tag_name"
+                  break
+                else
+                  echo "❌ 创建发布版本失败 / Failed to create release: $(echo "$create_result" | jq -r '.message // "API error"')"
+                  echo "API 响应 / API response: $create_result"
+                  retry_count=$((retry_count + 1))
+                  [ $retry_count -lt $max_retries ] && sleep 5
+                fi
+              done
+              
+              if [ "$create_success" = "false" ]; then
+                echo "❌ 在 $max_retries 次尝试后仍然失败 / Still failed after $max_retries attempts"
                 continue
               fi
-              echo "✅ 成功创建发布版本 / Successfully created release $tag_name"
             fi
             
             # 处理附件
@@ -199,7 +223,28 @@ jobs:
                 local asset_name=$(echo "$asset" | jq -r '.name')
                 
                 if [ -n "$asset_url" ] && [ -n "$asset_name" ]; then
-                  echo "检查附件 / Checking asset: $asset_name"
+                  # 显示详细的附件信息
+                  local asset_size=$(echo "$asset" | jq -r '.size')
+                  local asset_size_mb=$(echo "scale=2; $asset_size/1024/1024" | bc)
+                  echo "----------------------------------------"
+                  echo "附件信息 / Asset information:"
+                  echo "- 源仓库 / Source repo: $repo_name"
+                  echo "- 发布版本 / Release: $tag_name"
+                  echo "- 文件名 / Filename: $asset_name"
+                  echo "- 文件大小 / File size: ${asset_size_mb}MB"
+                  echo "- 下载地址 / Download URL: $asset_url"
+                  echo "----------------------------------------"
+                  
+                  # 检查仓库当前已用配额
+                  local repo_info=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
+                    "https://gitee.com/api/v5/repos/${GITEE_USERNAME}/${repo_name##*/}")
+                  local current_size=$(echo "$repo_info" | jq -r '.size // 0')
+                  local current_size_mb=$(echo "scale=2; $current_size/1024/1024" | bc)
+                  
+                  echo "仓库配额信息 / Repository quota information:"
+                  echo "- 当前已用空间 / Current used space: ${current_size_mb}MB"
+                  echo "- 单文件限制 / Single file limit: 1024MB"
+                  echo "----------------------------------------"
                   
                   # 检查文件是否已存在
                   echo "获取现有附件列表 / Getting existing assets list..."
@@ -221,7 +266,6 @@ jobs:
                   
                   # 从发布版本详情中提取附件列表
                   local existing_assets=$(echo "$release_info" | jq -r '.assets')
-                  echo "现有附件列表响应 / Existing assets response: $existing_assets"
                   
                   if [ -n "$existing_assets" ] && [ "$existing_assets" != "null" ] && echo "$existing_assets" | jq -r '.[].name' | grep -q "^${asset_name}$"; then
                     echo "ℹ️ 附件已存在 / Asset $asset_name already exists"
@@ -239,12 +283,20 @@ jobs:
                       "https://gitee.com/api/v5/repos/${GITEE_USERNAME}/${repo_name##*/}/releases/${release_id}/attach_files" \
                       -F "file=@/tmp/${asset_name}" 2>&1)
                     
-                    # 检查上传结果中的 HTTP 状态码
+                    # 检查上传结果
                     if echo "$upload_result" | grep -q "< HTTP/2 201"; then
                       echo "✅ 成功上传附件 / Successfully uploaded asset $asset_name"
                     else
                       echo "❌ 上传附件失败 / Failed to upload asset"
-                      echo "错误详情 / Error details: $upload_result"
+                      echo "----------------------------------------"
+                      echo "错误详情 / Error details:"
+                      echo "- 源仓库 / Source repo: $repo_name"
+                      echo "- 发布版本 / Release: $tag_name"
+                      echo "- 文件名 / Filename: $asset_name"
+                      echo "- 文件大小 / File size: ${asset_size_mb}MB"
+                      echo "- HTTP 响应 / HTTP response:"
+                      echo "$upload_result" | grep -E "< HTTP/2|{.*}"
+                      echo "----------------------------------------"
                     fi
                     
                     # 立即删除临时文件
@@ -252,6 +304,14 @@ jobs:
                     echo "已删除临时文件 / Temporary file deleted: /tmp/${asset_name}"
                   else
                     echo "❌ 从 GitHub 下载附件失败 / Failed to download asset from GitHub"
+                    echo "----------------------------------------"
+                    echo "错误详情 / Error details:"
+                    echo "- 源仓库 / Source repo: $repo_name"
+                    echo "- 发布版本 / Release: $tag_name"
+                    echo "- 文件名 / Filename: $asset_name"
+                    echo "- 文件大小 / File size: ${asset_size_mb}MB"
+                    echo "- 下载地址 / Download URL: $asset_url"
+                    echo "----------------------------------------"
                   fi
                 fi
               done
