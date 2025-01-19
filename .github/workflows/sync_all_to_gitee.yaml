@@ -105,69 +105,81 @@ jobs:
           df -h /tmp
         }
 
+    - name: Sync Repositories
+      run: |
         # 获取可见引用函数（排除隐藏引用）
         get_visible_refs() {
           local ref_type=$1  # "heads" 或 "tags"
           git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
         }
 
-        # 推送单个引用函数（带重试机制）
-        push_ref() {
-          local repo_name=$1
-          local ref=$2
-          local max_retries=3
-          local retry_count=0
-          local success=false
-          
-          while [ $retry_count -lt $max_retries ] && [ "$success" = "false" ]; do
-            if [ $retry_count -gt 0 ]; then
-              echo "第 $((retry_count + 1)) 次尝试推送 / Retry attempt $((retry_count + 1)) for $ref"
-              sleep $((retry_count * 5))  # 递增等待时间
-            fi
-            
-            if timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref" 2>&1; then
-              success=true
-              echo "✅ 成功推送 / Successfully pushed: $ref"
-              break
-            else
-              retry_count=$((retry_count + 1))
-              if [ $retry_count -lt $max_retries ]; then
-                echo "⚠️ 推送失败，将重试 / Push failed, will retry: $ref"
-              fi
-            fi
-          done
-          
-          if [ "$success" = "false" ]; then
-            echo "❌ 推送失败（已重试 $max_retries 次）/ Push failed after $max_retries retries: $ref"
-            return 1
-          fi
-          
-          return 0
-        }
-
-        # 同步代码函数 - 只同步分支代码
+        # 同步代码函数 - 使用 reset --hard 加速同步
         sync_code() {
           local repo_name=$1
           local repo_path=$2
           local ret=0
-          local failed_refs=""
+          local failed_branches=""
           
-          echo "推送分支代码 / Pushing branch code..."
-          get_visible_refs "heads" | while read ref; do
-            echo "推送分支 / Pushing branch: $ref"
-            if ! push_ref "$repo_name" "$ref"; then
-              failed_refs="$failed_refs\n$ref"
+          echo "准备同步分支代码 / Preparing to sync branch code..."
+          
+          # 创建临时目录
+          local temp_dir="/tmp/temp_${repo_name##*/}"
+          mkdir -p "$temp_dir"
+          cd "$temp_dir"
+          
+          # 初始化仓库并设置远程
+          git init
+          git remote add gitee "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git"
+          git remote add github "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git"
+          
+          # 获取所有分支列表（排除隐藏引用）
+          local branches=$(cd "$repo_path" && get_visible_refs "heads" | sed 's|refs/heads/||')
+          
+          echo "获取到的分支列表 / Fetched branches list:"
+          echo "$branches"
+          
+          # 从 GitHub 获取所有分支
+          echo "从 GitHub 获取所有分支 / Fetching all branches from GitHub..."
+          git fetch github --quiet
+          
+          # 遍历处理每个分支
+          echo "$branches" | while read branch; do
+            if [ -z "$branch" ]; then
+              continue
+            fi
+            
+            echo "处理分支 / Processing branch: $branch"
+            
+            # 重置到 GitHub 分支的最新状态
+            if git reset --hard "github/$branch" 2>/dev/null; then
+              echo "已重置到最新状态 / Reset to latest state: $branch"
+              
+              # 强制推送到 Gitee
+              if timeout 300 git push -f gitee "HEAD:$branch" 2>/dev/null; then
+                echo "✅ 成功同步分支 / Successfully synced branch: $branch"
+              else
+                echo "❌ 推送分支失败 / Failed to push branch: $branch"
+                failed_branches="$failed_branches\n$branch"
+                ret=1
+              fi
+            else
+              echo "❌ 重置分支失败 / Failed to reset branch: $branch"
+              failed_branches="$failed_branches\n$branch"
               ret=1
-              continue  # 继续处理其他分支，而不是立即退出
             fi
           done
           
-          if [ -n "$failed_refs" ]; then
+          if [ -n "$failed_branches" ]; then
             echo "----------------------------------------"
-            echo "❌ 以下分支推送失败 / Following branches failed to push:"
-            echo -e "$failed_refs"
+            echo "❌ 以下分支同步失败 / Following branches failed to sync:"
+            echo -e "$failed_branches"
             echo "----------------------------------------"
           fi
+          
+          # 清理临时目录
+          cd ..
+          rm -rf "$temp_dir"
+          echo "✅ 清理临时目录完成 / Temporary directory cleaned up"
           
           return $ret
         }
@@ -261,15 +273,13 @@ jobs:
           echo "===> 步骤 1: 克隆 GitHub 仓库 / Step 1: Cloning GitHub repository"
           echo "仓库 / Repository: $repo_name"
           
-          # 使用完整克隆而不是浅克隆，避免 Gitee 拒绝推送
+          # 使用完整克隆
           git clone --mirror \
             "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git" "$repo_path" || {
             echo "❌ 从 GitHub 克隆仓库失败 / Failed to clone repository from GitHub: $repo_name"
             return 1
           }
           echo "✅ 成功克隆 GitHub 仓库 / Successfully cloned GitHub repository"
-          
-          cd "$repo_path"
           
           if [ "$gitee_repo_exists" = "false" ]; then
             echo "===> 步骤 2: 在 Gitee 上创建新仓库 / Step 2: Creating new repository on Gitee"
@@ -293,7 +303,6 @@ jobs:
           if [ $ret -eq 0 ]; then
             echo "===> 步骤 3: 同步到 Gitee / Step 3: Syncing to Gitee"
             
-            # 根据同步模式执行不同的同步操作
             case "$SYNC_MODE" in
               "code_only")
                 echo "仅同步代码 / Syncing code only..."
@@ -301,22 +310,17 @@ jobs:
                 ;;
               "code_and_tags")
                 echo "同步代码和标签 / Syncing code and tags..."
-                (sync_code "$repo_name" "$repo_path" && \
-                sync_tags "$repo_name" "$repo_path") &
+                sync_code "$repo_name" "$repo_path" && sync_tags "$repo_name" "$repo_path"
                 ;;
               "code_tags_and_assets")
                 echo "同步代码、标签和附件 / Syncing code, tags and assets..."
-                (sync_code "$repo_name" "$repo_path" && \
-                sync_tags "$repo_name" "$repo_path") &
-                sync_releases "$repo_name" &
+                sync_code "$repo_name" "$repo_path" && \
+                sync_tags "$repo_name" "$repo_path" && \
+                sync_releases "$repo_name"
                 ;;
             esac
-            
-            # 等待所有后台任务完成
-            wait
           fi
           
-          cd ..
           cleanup "$repo_path"
           return $ret
         }
