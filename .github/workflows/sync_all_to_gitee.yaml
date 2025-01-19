@@ -369,37 +369,44 @@ jobs:
               -d "name=${repo_name##*/}&private=true&has_issues=true&has_wiki=true")
             
             if echo "$create_response" | grep -q "error"; then
-              echo "❌ 在 Gitee 上创建仓库失败 / Failed to create repository on Gitee: ${repo_name##*/}"
-              echo "错误 / Error: $(echo "$create_response" | jq -r '.error // .message')"
-              ret=1
+              # 检查是否是因为仓库已存在（忽略大小写）
+              if echo "$create_response" | grep -q "已存在同地址仓库（忽略大小写）"; then
+                echo "⚠️ 仓库已存在（忽略大小写），尝试直接同步 / Repository exists (case-insensitive), trying to sync directly"
+                gitee_repo_exists=true
+              else
+                echo "❌ 在 Gitee 上创建仓库失败 / Failed to create repository on Gitee: ${repo_name##*/}"
+                echo "错误 / Error: $(echo "$create_response" | jq -r '.error // .message')"
+                cleanup "$repo_name"
+                return 1
+              fi
             else
               echo "✅ 成功创建 Gitee 仓库 / Successfully created Gitee repository"
+              echo "等待仓库创建完成 / Waiting for repository creation to complete..."
+              sleep 5
             fi
-            
-            echo "等待仓库创建完成 / Waiting for repository creation to complete..."
-            sleep 5
           fi
           
-          if [ $ret -eq 0 ]; then
-            echo "===> 步骤 3: 同步到 Gitee / Step 3: Syncing to Gitee"
-            
-            case "$SYNC_MODE" in
-              "code_only")
-                echo "仅同步代码 / Syncing code only..."
-                sync_code "$repo_name" "$repo_path"
-                ;;
-              "code_and_tags")
-                echo "同步代码和标签 / Syncing code and tags..."
-                sync_code "$repo_name" "$repo_path" && sync_tags "$repo_name" "$repo_path"
-                ;;
-              "code_tags_and_assets")
-                echo "同步代码、标签和附件 / Syncing code, tags and assets..."
-                sync_code "$repo_name" "$repo_path" && \
-                sync_tags "$repo_name" "$repo_path" && \
-                sync_releases "$repo_name"
-                ;;
-            esac
-          fi
+          echo "===> 步骤 3: 同步到 Gitee / Step 3: Syncing to Gitee"
+          
+          case "$SYNC_MODE" in
+            "code_only")
+              echo "仅同步代码 / Syncing code only..."
+              sync_code "$repo_name" "$repo_path"
+              ret=$?
+              ;;
+            "code_and_tags")
+              echo "同步代码和标签 / Syncing code and tags..."
+              sync_code "$repo_name" "$repo_path" && sync_tags "$repo_name" "$repo_path"
+              ret=$?
+              ;;
+            "code_tags_and_assets")
+              echo "同步代码、标签和附件 / Syncing code, tags and assets..."
+              sync_code "$repo_name" "$repo_path" && \
+              sync_tags "$repo_name" "$repo_path" && \
+              sync_releases "$repo_name"
+              ret=$?
+              ;;
+          esac
           
           # 同步完成后清理
           if ! cleanup "$repo_name"; then
