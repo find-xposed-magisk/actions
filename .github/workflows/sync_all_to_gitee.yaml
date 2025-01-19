@@ -361,12 +361,18 @@ jobs:
           local repo_name=$1
           local repo_path=$2
           local gitee_repo_exists=$3
+          local repo_num=$4
+          local total=$5
+          
+          echo "========== 开始处理仓库 $repo_num/$total: $repo_name =========="
           
           if sync_repo "$repo_name" "$repo_path" "$gitee_repo_exists"; then
-            echo "✅ 成功同步仓库 / Successfully synced repository: $repo_name"
+            echo "========== ✅ 成功同步仓库 $repo_num/$total: $repo_name =========="
+            success_count=$((success_count + 1))
             return 0
           else
-            echo "❌ 同步仓库失败 / Failed to sync repository: $repo_name"
+            echo "========== ❌ 同步仓库失败 $repo_num/$total: $repo_name =========="
+            failed_count=$((failed_count + 1))
             return 1
           fi
         }
@@ -378,7 +384,7 @@ jobs:
         page=1
         success_count=0
         failed_count=0
-        max_concurrent_syncs=3  # 最大并行同步数量
+        max_concurrent_syncs=2  # 减少并行数量，避免日志混乱
         
         echo "开始仓库同步 / Starting repository synchronization..."
         
@@ -406,9 +412,7 @@ jobs:
             done
             
             repo_path="/tmp/$(basename "$repo_name")"
-            
-            echo "----------------------------------------"
-            echo "处理第 $((processed + 1)) 个，共 $total 个 / Processing $((processed + 1)) of $total: $repo_name"
+            processed=$((processed + 1))
             
             # 检查仓库是否已存在于Gitee
             if echo "$gitee_repos" | grep -q "^$(basename "$repo_name")$"; then
@@ -420,9 +424,10 @@ jobs:
             fi
             
             # 在后台运行同步任务
-            process_repo "$repo_name" "$repo_path" "$gitee_repo_exists" &
+            process_repo "$repo_name" "$repo_path" "$gitee_repo_exists" "$processed" "$total" &
             
-            processed=$((processed + 1))
+            # 添加短暂延迟，避免日志混乱
+            sleep 2
           done
           
           # 等待当前页的所有任务完成
