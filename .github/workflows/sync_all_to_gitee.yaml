@@ -203,9 +203,15 @@ jobs:
                 if [ $retry_count -gt 0 ]; then
                   echo "第 $((retry_count + 1)) 次尝试推送 / Retry attempt $((retry_count + 1)) for $branch"
                   sleep $((retry_count * 5))
+                  
+                  # 重试前先获取最新状态
+                  echo "获取 Gitee 仓库最新状态 / Fetching latest state from Gitee..."
+                  git fetch gitee || true
                 fi
                 
-                if timeout 300 git push -f gitee "HEAD:$branch" 2>&1; then
+                # 显示完整的推送命令和错误信息
+                echo "执行推送命令 / Executing push command: git push -f gitee HEAD:$branch"
+                if push_output=$(git push -f gitee "HEAD:$branch" 2>&1); then
                   echo "✅ 成功同步分支 / Successfully synced branch: $branch"
                   push_success=true
                   break
@@ -214,7 +220,13 @@ jobs:
                   if [ $retry_count -lt $max_retries ]; then
                     echo "⚠️ 推送失败，将重试 / Push failed, will retry: $branch"
                     echo "错误详情 / Error details:"
-                    git push -f gitee "HEAD:$branch" 2>&1 || true
+                    echo "$push_output"
+                    
+                    # 检查具体错误类型
+                    if echo "$push_output" | grep -q "shallow update not allowed"; then
+                      echo "检测到浅克隆错误，尝试完整克隆 / Detected shallow clone error, trying full clone..."
+                      git fetch github --unshallow || true
+                    fi
                   fi
                 fi
               done
@@ -222,7 +234,7 @@ jobs:
               if [ "$push_success" = "false" ]; then
                 echo "❌ 推送分支失败（已重试 $max_retries 次）/ Push failed after $max_retries retries: $branch"
                 echo "最后一次错误详情 / Last error details:"
-                git push -f gitee "HEAD:$branch" 2>&1 || true
+                echo "$push_output"
                 failed_branches="$failed_branches\n$branch"
                 ret=1
               fi
