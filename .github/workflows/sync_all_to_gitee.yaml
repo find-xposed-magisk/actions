@@ -213,8 +213,8 @@ jobs:
           echo "===> 步骤 1: 克隆 GitHub 仓库 / Step 1: Cloning GitHub repository"
           echo "仓库 / Repository: $repo_name"
           
-          # 克隆GitHub仓库，使用浅克隆和单分支优化
-          git clone --mirror --depth=1 --no-single-branch \
+          # 使用完整克隆而不是浅克隆，避免 Gitee 拒绝推送
+          git clone --mirror \
             "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git" "$repo_path" || {
             echo "❌ 从 GitHub 克隆仓库失败 / Failed to clone repository from GitHub: $repo_name"
             return 1
@@ -253,16 +253,19 @@ jobs:
                 ;;
               "code_and_tags")
                 echo "同步代码和标签 / Syncing code and tags..."
-                sync_code "$repo_name" "$repo_path" && \
-                sync_tags "$repo_name" "$repo_path"
+                (sync_code "$repo_name" "$repo_path" && \
+                sync_tags "$repo_name" "$repo_path") &
                 ;;
               "code_tags_and_assets")
                 echo "同步代码、标签和附件 / Syncing code, tags and assets..."
-                sync_code "$repo_name" "$repo_path" && \
-                sync_tags "$repo_name" "$repo_path" && \
-                sync_releases "$repo_name" || true
+                (sync_code "$repo_name" "$repo_path" && \
+                sync_tags "$repo_name" "$repo_path") &
+                sync_releases "$repo_name" &
                 ;;
             esac
+            
+            # 等待所有后台任务完成
+            wait
           fi
           
           cd ..
@@ -270,20 +273,13 @@ jobs:
           return $ret
         }
 
-        # 显示同步统计信息
-        echo "============================================"
-        echo "开始同步过程 / Starting synchronization process"
-        echo "GitHub 仓库数量 / GitHub repositories: $GITHUB_REPOS_COUNT"
-        echo "Gitee 仓库数量 / Gitee repositories: $GITEE_REPOS_COUNT"
-        echo "需要创建的新仓库数量 / New repositories to create: $(($GITHUB_REPOS_COUNT - $GITEE_REPOS_COUNT))"
-        echo "============================================"
-
         # 主程序
         processed=0
         total=$GITHUB_REPOS_COUNT
         page=1
         success_count=0
         failed_count=0
+        max_concurrent_syncs=3  # 最大并行同步数量
         
         echo "开始仓库同步 / Starting repository synchronization..."
         
@@ -303,8 +299,13 @@ jobs:
           gitee_repos=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
             "https://gitee.com/api/v5/user/repos?per_page=100" | jq -r '.[].name')
           
-          # 处理每个仓库
+          # 并行处理仓库
           echo "$repos" | jq -r '.[] | .full_name' | while read -r repo_name; do
+            # 等待，直到运行中的任务数小于最大并行数
+            while [ $(jobs -r | wc -l) -ge $max_concurrent_syncs ]; do
+              sleep 1
+            done
+            
             repo_path="/tmp/$(basename "$repo_name")"
             
             echo "----------------------------------------"
@@ -312,30 +313,31 @@ jobs:
             
             # 检查仓库是否已存在于Gitee
             if echo "$gitee_repos" | grep -q "^$(basename "$repo_name")$"; then
-              sync_repo "$repo_name" "$repo_path" "true"
-              sync_result=$?
+              echo "仓库已存在于 Gitee / Repository exists on Gitee: ${repo_name##*/}"
+              gitee_repo_exists=true
             else
-              sync_repo "$repo_name" "$repo_path" "false"
-              sync_result=$?
+              echo "仓库不存在于 Gitee / Repository does not exist on Gitee: ${repo_name##*/}"
+              gitee_repo_exists=false
             fi
             
-            # 根据同步结果更新计数
-            if [ $sync_result -eq 0 ]; then
-              success_count=$((success_count + 1))
-              echo "仓库同步成功 / Repository $repo_name sync succeeded"
-            else
-              failed_count=$((failed_count + 1))
-              echo "仓库同步失败 / Repository $repo_name sync failed"
-            fi
+            # 在后台运行同步任务
+            (
+              if sync_repo "$repo_name" "$repo_path" "$gitee_repo_exists"; then
+                echo "✅ 成功同步仓库 / Successfully synced repository: $repo_name"
+                success_count=$((success_count + 1))
+              else
+                echo "❌ 同步仓库失败 / Failed to sync repository: $repo_name"
+                failed_count=$((failed_count + 1))
+              fi
+            ) &
             
             processed=$((processed + 1))
-            echo "进度 / Progress: $processed/$total repositories processed"
-            echo "成功 / Success: $success_count, 失败 / Failed: $failed_count"
-            echo "----------------------------------------"
           done
           
-          ((page++))
-          echo "移至第 $page 页 / Moving to page $page..."
+          # 等待当前页的所有任务完成
+          wait
+          
+          page=$((page + 1))
         done
         
         echo "============================================"
