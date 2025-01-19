@@ -121,16 +121,27 @@ jobs:
           if [ $ret -eq 0 ]; then
             echo "===> 步骤 3: 推送到 Gitee / Step 3: Pushing to Gitee"
             echo "推送所有分支和标签 / Pushing all branches and tags..."
-            # 排除 pull request 引用
-            git for-each-ref --format='%(refname)' refs/heads/* refs/tags/* | \
-            while read ref; do
-              timeout 300 git push "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref" || {
+            
+            # 获取所有分支和标签
+            local push_failed=false
+            echo "获取引用列表 / Getting refs list..."
+            git for-each-ref --format='%(refname)' refs/heads/* refs/tags/* | while read ref; do
+              echo "推送 / Pushing: $ref"
+              if ! timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref"; then
                 echo "❌ 推送失败 / Push failed for $ref"
-                ret=1
+                push_failed=true
                 break
-              }
+              else
+                echo "✅ 成功推送 / Successfully pushed: $ref"
+              fi
             done
-            [ $ret -eq 0 ] && echo "✅ 成功推送到 Gitee / Successfully pushed to Gitee"
+            
+            if [ "$push_failed" = "true" ]; then
+              echo "❌ 部分引用推送失败 / Some refs failed to push"
+              ret=1
+            else
+              echo "✅ 成功推送所有引用到 Gitee / Successfully pushed all refs to Gitee"
+            fi
           fi
           
           if [ $ret -eq 0 ]; then
