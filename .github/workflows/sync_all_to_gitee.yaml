@@ -9,7 +9,7 @@ jobs:
   sync-to-gitee:
     runs-on: ubuntu-latest
     env:
-      GITHUB_TOKEN: ${{ secrets.MYGITHUB_TOKEN  }}
+      GITHUB_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
       GITEE_TOKEN: ${{ secrets.MYGITEE_TOKEN }}
       GITEE_USERNAME: ${{ secrets.MYGITEE_USERNAME }}
     
@@ -17,88 +17,234 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
       
-    - name: Set up environment
-      run: |
-        echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
-        echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
-        echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
+    - name: Setup SSH key
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.MYGITEE_SSH_PRIVATE_KEY }}
+        log-public-key: 'true'  # 启用公钥日志，方便调试
         
-    - name: Install dependencies
+    - name: Setup Git
       run: |
-        sudo apt-get update
-        sudo apt-get install -y jq curl git
+        git config --global user.name "github_bot"
+        git config --global user.email "github_bot@github.com"
         
-    - name: Setup SSH keys
-      run: |
-        wget --no-check-certificate -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
-        bash ../key.sh
+        # 测试 SSH 连接 / Test SSH connection
+        echo "测试 SSH 连接 / Testing SSH connection..."
+        ssh -T git@gitee.com || true
         
+        # 测试 Gitee API / Test Gitee API
+        echo "测试 Gitee API / Testing Gitee API..."
+        if ! curl -s -H "Authorization: token $GITEE_TOKEN" "https://gitee.com/api/v5/user" | jq -e ".login" > /dev/null; then
+          echo "错误：Gitee API 访问失败 / Error: Gitee API access failed"
+          exit 1
+        fi
+        echo "Gitee API 测试成功 / Gitee API test successful"
+
     - name: Create sync script
       run: |
-        cat > sync_repos.sh << 'EOF'
-        #!/bin/bash
-        
-        # 获取所有GitHub仓库
-        gh_repos=$(curl -H "Authorization: token $GITHUB_TOKEN" \
-          "https://api.github.com/user/repos?per_page=100" | jq -r '.[].name')
-        
-        for repo in $gh_repos; do
-          echo "Processing repository: $repo"
+        echo '#!/bin/bash
+
+        # 错误处理函数 / Error handling function
+        handle_error() {
+          echo "错误/Error: $1"
+          exit 1
+        }
+
+        # 清理函数 / Cleanup function
+        cleanup() {
+          local repo_path=$1
+          echo "清理临时文件 / Cleaning temporary files..."
+          cd - &>/dev/null || true
+          if [ -d "$repo_path" ]; then
+            rm -rf "$repo_path"
+          fi
+          # 强制清理 git 对象和临时文件 / Force cleanup git objects and temp files
+          git gc --prune=now
+          git repack -a -d --depth=250 --window=250
+        }
+
+        # 获取所有 GitHub 仓库 / Get all GitHub repositories
+        fetch_all_github_repos() {
+          local page=1
+          local repos=()
+          local response
           
-          # 检查Gitee是否存在该仓库
-          gitee_check=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
-            "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo")
+          echo "获取所有 GitHub 仓库... / Fetching all GitHub repositories..."
+          while true; do
+            response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/users/$GITHUB_REPOSITORY_OWNER/repos?per_page=100&page=$page")
+            
+            # 检查是否为空数组 / Check if empty array
+            if [ "$(echo "$response" | jq '. | length')" -eq 0 ]; then
+              break
+            fi
+            
+            repos+=( $(echo "$response" | jq -r ".[].name") )
+            ((page++))
+          done
           
-          if echo "$gitee_check" | grep -q "not found"; then
-            # 在Gitee创建私有仓库
-            echo "Creating repository $repo on Gitee..."
+          echo "${repos[@]}"
+        }
+
+        # 测试 Gitee Token / Test Gitee Token
+        echo "测试 Gitee Token..."
+        if ! curl -s -H "Authorization: token $GITEE_TOKEN" "https://gitee.com/api/v5/user" | jq -e ".login" > /dev/null; then
+          handle_error "Gitee Token 验证失败 / Gitee Token verification failed"
+        fi
+        echo "Gitee Token 验证成功 / Gitee Token verified successfully"
+
+        # 获取所有仓库列表 / Get all repository lists
+        echo "正在获取GitHub仓库列表... / Getting GitHub repository list..."
+        gh_repos=$(fetch_all_github_repos)
+        echo "GitHub 总仓库数 / Total GitHub repos: $(echo "$gh_repos" | wc -w)"
+
+        echo "获取 Gitee 仓库列表... / Getting Gitee repository list..."
+        gitee_repos=$(curl -s -H "Authorization: token $GITEE_TOKEN" "https://gitee.com/api/v5/user/repos?page=1&per_page=100" | jq -r ".[].name")
+        echo "Gitee 现有仓库数 / Current Gitee repos: $(echo "$gitee_repos" | wc -w)"
+
+        # 同步发布附件 / Sync release assets
+        sync_release_assets() {
+          local repo=$1
+          local release_id=$2
+          local gitee_release_id=$3
+          
+          # 获取 GitHub release 的附件 / Get GitHub release assets
+          assets=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$repo/releases/$release_id/assets")
+          
+          for asset in $(echo "$assets" | jq -r ".[] | @base64"); do
+            asset_data=$(echo "$asset" | base64 --decode)
+            asset_name=$(echo "$asset_data" | jq -r ".name")
+            asset_url=$(echo "$asset_data" | jq -r ".browser_download_url")
+            
+            echo "下载附件 / Downloading asset: $asset_name"
+            # 下载附件 / Download asset
+            curl -L -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/octet-stream" \
+              "$asset_url" -o "/tmp/$asset_name"
+            
+            echo "上传附件到 Gitee / Uploading asset to Gitee"
+            # 上传到 Gitee / Upload to Gitee
             curl -X POST \
+              -H "Authorization: token $GITEE_TOKEN" \
+              -F "access_token=$GITEE_TOKEN" \
+              -F "file=@/tmp/$asset_name" \
+              "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo/releases/$gitee_release_id/assets"
+            
+            rm -f "/tmp/$asset_name"
+          done
+        }
+
+        # 同步发布版本 / Sync releases
+        sync_releases() {
+          local repo=$1
+          
+          echo "同步发布版本 / Syncing releases..."
+          
+          # 获取 GitHub releases / Get GitHub releases
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$repo/releases")
+          
+          for release in $(echo "$releases" | jq -r ".[] | @base64"); do
+            release_data=$(echo "$release" | base64 --decode)
+            tag_name=$(echo "$release_data" | jq -r ".tag_name")
+            name=$(echo "$release_data" | jq -r ".name")
+            body=$(echo "$release_data" | jq -r ".body")
+            prerelease=$(echo "$release_data" | jq -r ".prerelease")
+            gh_release_id=$(echo "$release_data" | jq -r ".id")
+            
+            echo "处理发布版本 / Processing release: $tag_name"
+            
+            # 在 Gitee 创建对应的发布版本 / Create corresponding release on Gitee
+            gitee_release_response=$(curl -X POST \
+              -H "Authorization: token $GITEE_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo/releases" \
+              -d "{
+                \"tag_name\": \"$tag_name\",
+                \"name\": \"$name\",
+                \"body\": \"$body\",
+                \"prerelease\": $prerelease
+              }")
+            
+            gitee_release_id=$(echo "$gitee_release_response" | jq -r ".id")
+            
+            if [ "$gitee_release_id" != "null" ]; then
+              # 同步附件 / Sync assets
+              sync_release_assets "$repo" "$gh_release_id" "$gitee_release_id"
+            else
+              echo "创建 Gitee 发布版本失败 / Failed to create Gitee release"
+            fi
+          done
+        }
+
+        process_repo() {
+          local repo=$1
+          local tmp_dir="/tmp/$repo"
+          echo "====================================="
+          echo "正在处理仓库 / Processing repository: $repo"
+          echo "====================================="
+
+          # 检查仓库是否存在 / Check if repository exists
+          if ! echo "$gitee_repos" | grep -q "^$repo\$"; then
+            echo "在 Gitee 上创建仓库 / Creating repository on Gitee: $repo"
+            create_response=$(curl -s -X POST \
               -H "Authorization: token $GITEE_TOKEN" \
               -H "Content-Type: application/json" \
               "https://gitee.com/api/v5/user/repos" \
-              -d "{
-                \"name\": \"$repo\",
-                \"private\": true,
-                \"has_issues\": true,
-                \"has_wiki\": true
-              }"
+              -d "{\"name\":\"$repo\",\"private\":false}")
+            
+            if ! echo "$create_response" | jq -e ".name" > /dev/null; then
+              echo "仓库创建失败 / Repository creation failed: $create_response"
+              return 1
+            fi
+          else
+            echo "Gitee仓库已存在 / Gitee repository already exists"
           fi
+
+          # 克隆并同步仓库 / Clone and sync repository
+          echo "克隆 GitHub 仓库 / Cloning GitHub repository..."
+          git clone --mirror "https://github.com/$GITHUB_REPOSITORY_OWNER/$repo.git" "$tmp_dir" || {
+            cleanup "$tmp_dir"
+            return 1
+          }
           
-          # 克隆GitHub仓库
-          git clone --mirror "https://github.com/$GITHUB_REPOSITORY_OWNER/$repo.git" "$repo"
-          cd "$repo"
+          cd "$tmp_dir" || {
+            cleanup "$tmp_dir"
+            return 1
+          }
           
-          # 推送到Gitee
-          git remote set-url origin "git@gitee.com:$GITEE_USERNAME/$repo.git"
-          git push --mirror
+          # 同步标签 / Sync tags
+          echo "同步标签 / Syncing tags..."
+          git fetch --tags --force
+
+          echo "推送到 Gitee / Pushing to Gitee..."
+          timeout 300 git push --mirror "git@gitee.com:$GITEE_USERNAME/$repo.git" || {
+            echo "推送超时或失败 / Push timeout or failed"
+            cleanup "$tmp_dir"
+            return 1
+          }
           
-          # 同步附件（如果有releases）
-          releases=$(curl -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$repo/releases")
+          # 同步发布版本和附件 / Sync releases and assets
+          sync_releases "$repo"
           
-          if [ "$(echo "$releases" | jq length)" -gt 0 ]; then
-            echo "Syncing releases for $repo..."
-            echo "$releases" | jq -r '.[].assets[].browser_download_url' | while read url; do
-              if [ ! -z "$url" ]; then
-                filename=$(basename "$url")
-                wget "$url"
-                
-                # 上传到Gitee
-                curl -X POST \
-                  -H "Authorization: token $GITEE_TOKEN" \
-                  "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo/attachments" \
-                  -F "file=@$filename"
-              fi
-            done
+          cleanup "$tmp_dir"
+          echo "仓库 $repo 同步完成 / Repository $repo sync completed"
+          return 0
+        }
+
+        # 处理所有仓库 / Process all repositories
+        for repo in $gh_repos; do
+          if process_repo "$repo"; then
+            echo "成功同步仓库 / Successfully synced: $repo"
+          else
+            echo "同步失败 / Sync failed: $repo"
           fi
-          
-          cd ..
-          rm -rf "$repo"
-          echo "Finished processing $repo"
-        done
-        EOF
-        
+          # 同步后暂停 3 秒避免 API 限制 / Pause 3 seconds after sync to avoid API limits
+          sleep 3
+        done' > sync_repos.sh
+
         chmod +x sync_repos.sh
-        
+
     - name: Run sync script
       run: ./sync_repos.sh 
