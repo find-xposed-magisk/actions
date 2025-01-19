@@ -2,7 +2,7 @@
 # https://github.com/LightCountry/TokenPay
 # USDT 收款 - 独角数卡 - 彩虹 -v2oard - card-system
 # 支持每单一个收款地址，或每个用户一个收款地址，解决了单一地址收款，容易导致错误完成订单的痛点
-name: (usdt-pay)LightCountry- PTokenPay _Sync Fork.yaml
+name: (usdt-pay)-(构建docker)LightCountry- PTokenPay _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
@@ -12,7 +12,7 @@ env:
   MYORIGINAL_REPOSITORY: usdt-pay
   UPSTREAM_BRANCH: master
   MY_BRANCH: LightCountry/TokenPay
-  DOCKER_BUILD: NO
+  DOCKER_BUILD: YES
 
 on:
   workflow_dispatch:
