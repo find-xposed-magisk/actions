@@ -85,8 +85,17 @@ jobs:
         echo "Found $gitee_repos_count repositories on Gitee"
         echo "GITEE_REPOS_COUNT=$gitee_repos_count" >> $GITHUB_ENV
 
-    - name: Sync Repositories
+    - name: Run Synchronization
       run: |
+        # 显示同步统计信息
+        echo "============================================"
+        echo "开始同步过程 / Starting synchronization process"
+        echo "GitHub 仓库数量 / GitHub repositories: $GITHUB_REPOS_COUNT"
+        echo "Gitee 仓库数量 / Gitee repositories: $GITEE_REPOS_COUNT"
+        echo "需要创建的新仓库数量 / New repositories to create: $(($GITHUB_REPOS_COUNT - $GITEE_REPOS_COUNT))"
+        echo "============================================"
+
+        # 定义所有函数
         # 清理函数
         cleanup() {
           local repo_name=$1
@@ -122,9 +131,7 @@ jobs:
           echo "✅ 清理完成 / Cleanup completed"
         }
 
-    - name: Sync Repositories
-      run: |
-        # 获取可见引用函数（排除隐藏引用）
+        # 获取可见引用函数
         get_visible_refs() {
           local ref_type=$1  # "heads" 或 "tags"
           git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
@@ -341,7 +348,31 @@ jobs:
           return $ret
         }
 
-        # 主程序
+        # 导出所有函数到环境变量中
+        declare -fx cleanup
+        declare -fx get_visible_refs
+        declare -fx sync_code
+        declare -fx sync_tags
+        declare -fx sync_releases
+        declare -fx sync_repo
+
+        # 并行处理仓库
+        process_repo() {
+          local repo_name=$1
+          local repo_path=$2
+          local gitee_repo_exists=$3
+          
+          if sync_repo "$repo_name" "$repo_path" "$gitee_repo_exists"; then
+            echo "✅ 成功同步仓库 / Successfully synced repository: $repo_name"
+            return 0
+          else
+            echo "❌ 同步仓库失败 / Failed to sync repository: $repo_name"
+            return 1
+          fi
+        }
+        declare -fx process_repo
+
+        # 主程序开始
         processed=0
         total=$GITHUB_REPOS_COUNT
         page=1
@@ -389,15 +420,7 @@ jobs:
             fi
             
             # 在后台运行同步任务
-            (
-              if sync_repo "$repo_name" "$repo_path" "$gitee_repo_exists"; then
-                echo "✅ 成功同步仓库 / Successfully synced repository: $repo_name"
-                success_count=$((success_count + 1))
-              else
-                echo "❌ 同步仓库失败 / Failed to sync repository: $repo_name"
-                failed_count=$((failed_count + 1))
-              fi
-            ) &
+            process_repo "$repo_name" "$repo_path" "$gitee_repo_exists" &
             
             processed=$((processed + 1))
           done
