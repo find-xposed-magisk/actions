@@ -1,7 +1,30 @@
 name: Sync All Repos to Gitee
-
+# 同步功能模块化：
+# 将代码同步、标签同步和附件同步功能拆分为独立函数：
+# sync_code(): 只同步分支代码
+# sync_tags(): 只同步标签
+# sync_releases(): 同步发布版本和附件
+# 触发方式和同步模式：
+# 自动触发（schedule）：
+# 每3天自动执行一次
+# 默认只同步代码（SYNC_MODE=code_only）
+# 手动触发（workflow_dispatch）：
+# 提供三种同步模式选项：
+# code_only: 只同步源码
+# code_and_tags: 同步源码和标签
+# code_tags_and_assets: 同步源码、标签和附件
 on:
   workflow_dispatch:
+    inputs:
+      sync_mode:
+        description: '同步模式 / Sync Mode'
+        required: true
+        default: 'code_only'
+        type: choice
+        options:
+        - code_only
+        - code_and_tags
+        - code_tags_and_assets
   schedule:
     - cron: '0 0 */3 * *'  # 每3天执行一次
 
@@ -15,6 +38,8 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
       GITEE_TOKEN: ${{ secrets.MYGITEE_TOKEN }}
       GITEE_USERNAME: ${{ secrets.MYGITEE_USERNAME }}
+      # 设置同步模式：自动触发时只同步代码
+      SYNC_MODE: ${{ github.event_name == 'schedule' && 'code_only' || github.event.inputs.sync_mode }}
     
     steps:
     - name: Checkout
@@ -80,102 +105,49 @@ jobs:
           df -h /tmp
         }
 
-        # 同步仓库函数
-        sync_repo() {
+        # 获取可见引用函数（排除隐藏引用）
+        get_visible_refs() {
+          local ref_type=$1  # "heads" 或 "tags"
+          git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
+        }
+
+        # 同步代码函数 - 只同步分支代码
+        sync_code() {
           local repo_name=$1
           local repo_path=$2
-          local gitee_repo_exists=$3
           local ret=0
           
-          echo "===> 步骤 1: 克隆 GitHub 仓库 / Step 1: Cloning GitHub repository"
-          echo "仓库 / Repository: $repo_name"
-          
-          # 克隆GitHub仓库，使用浅克隆和单分支优化
-          git clone --mirror --depth=1 --no-single-branch \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git" "$repo_path" || {
-            echo "❌ 从 GitHub 克隆仓库失败 / Failed to clone repository from GitHub: $repo_name"
-            return 1
-          }
-          echo "✅ 成功克隆 GitHub 仓库 / Successfully cloned GitHub repository"
-          
-          # 获取完整历史
-          cd "$repo_path"
-          git fetch --unshallow || true
-          
-          if [ "$gitee_repo_exists" = "false" ]; then
-            echo "===> 步骤 2: 在 Gitee 上创建新仓库 / Step 2: Creating new repository on Gitee"
-            echo "创建私有仓库 / Creating private repository: ${repo_name##*/}"
-            # 创建Gitee私有仓库
-            local create_response=$(curl -s -X POST -H "Authorization: token $GITEE_TOKEN" \
-              "https://gitee.com/api/v5/user/repos" \
-              -d "name=${repo_name##*/}&private=true&has_issues=true&has_wiki=true")
-            
-            if echo "$create_response" | grep -q "error"; then
-              echo "❌ 在 Gitee 上创建仓库失败 / Failed to create repository on Gitee: ${repo_name##*/}"
-              echo "错误 / Error: $(echo "$create_response" | jq -r '.error // .message')"
+          echo "推送分支代码 / Pushing branch code..."
+          get_visible_refs "heads" | while read ref; do
+            echo "推送分支 / Pushing branch: $ref"
+            if ! timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref"; then
+              echo "❌ 推送失败 / Push failed for $ref"
               ret=1
-            else
-              echo "✅ 成功创建 Gitee 仓库 / Successfully created Gitee repository"
+              break
             fi
-            
-            echo "等待仓库创建完成 / Waiting for repository creation to complete..."
-            sleep 5
-          fi
+            echo "✅ 成功推送分支 / Successfully pushed branch: $ref"
+          done
           
-          if [ $ret -eq 0 ]; then
-            echo "===> 步骤 3: 推送到 Gitee / Step 3: Pushing to Gitee"
-            echo "推送所有分支和标签 / Pushing all branches and tags..."
-            
-            # 获取所有分支和标签
-            local push_failed=false
-            echo "获取引用列表 / Getting refs list..."
-            
-            # 创建临时文件存储结果
-            local tmp_result_file=$(mktemp)
-            
-            # 并行推送所有引用
-            git for-each-ref --format='%(refname)' refs/heads/* refs/tags/* | while read ref; do
-              {
-                echo "推送 / Pushing: $ref"
-                if timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref" > /dev/null 2>&1; then
-                  echo "✅ 成功推送 / Successfully pushed: $ref" >> "$tmp_result_file"
-                else
-                  echo "❌ 推送失败 / Push failed for $ref" >> "$tmp_result_file"
-                  echo "failed" >> "$tmp_result_file"
-                fi
-              } &
-              
-              # 限制并行数量为5个
-              while [ $(jobs -r | wc -l) -ge 5 ]; do
-                sleep 1
-              done
-            done
-            
-            # 等待所有推送完成
-            wait
-            
-            # 检查结果
-            if grep -q "failed" "$tmp_result_file"; then
-              echo "❌ 部分引用推送失败 / Some refs failed to push"
+          return $ret
+        }
+
+        # 同步标签函数
+        sync_tags() {
+          local repo_name=$1
+          local repo_path=$2
+          local ret=0
+          
+          echo "推送标签 / Pushing tags..."
+          get_visible_refs "tags" | while read ref; do
+            echo "推送标签 / Pushing tag: $ref"
+            if ! timeout 300 git push -f "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git" "$ref:$ref"; then
+              echo "❌ 推送失败 / Push failed for $ref"
               ret=1
-            else
-              echo "✅ 成功推送所有引用到 Gitee / Successfully pushed all refs to Gitee"
+              break
             fi
-            
-            # 显示所有推送结果
-            cat "$tmp_result_file"
-            
-            # 清理临时文件
-            rm -f "$tmp_result_file"
-          fi
+            echo "✅ 成功推送标签 / Successfully pushed tag: $ref"
+          done
           
-          if [ $ret -eq 0 ]; then
-            echo "===> 步骤 4: 同步发布版本和附件 / Step 4: Syncing releases and assets"
-            sync_releases "$repo_name" || true
-          fi
-          
-          cd ..
-          cleanup "$repo_path"
           return $ret
         }
 
@@ -229,6 +201,73 @@ jobs:
           wait
           
           return 0
+        }
+
+        # 主同步函数
+        sync_repo() {
+          local repo_name=$1
+          local repo_path=$2
+          local gitee_repo_exists=$3
+          local ret=0
+          
+          echo "===> 步骤 1: 克隆 GitHub 仓库 / Step 1: Cloning GitHub repository"
+          echo "仓库 / Repository: $repo_name"
+          
+          # 克隆GitHub仓库，使用浅克隆和单分支优化
+          git clone --mirror --depth=1 --no-single-branch \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git" "$repo_path" || {
+            echo "❌ 从 GitHub 克隆仓库失败 / Failed to clone repository from GitHub: $repo_name"
+            return 1
+          }
+          echo "✅ 成功克隆 GitHub 仓库 / Successfully cloned GitHub repository"
+          
+          cd "$repo_path"
+          
+          if [ "$gitee_repo_exists" = "false" ]; then
+            echo "===> 步骤 2: 在 Gitee 上创建新仓库 / Step 2: Creating new repository on Gitee"
+            echo "创建私有仓库 / Creating private repository: ${repo_name##*/}"
+            local create_response=$(curl -s -X POST -H "Authorization: token $GITEE_TOKEN" \
+              "https://gitee.com/api/v5/user/repos" \
+              -d "name=${repo_name##*/}&private=true&has_issues=true&has_wiki=true")
+            
+            if echo "$create_response" | grep -q "error"; then
+              echo "❌ 在 Gitee 上创建仓库失败 / Failed to create repository on Gitee: ${repo_name##*/}"
+              echo "错误 / Error: $(echo "$create_response" | jq -r '.error // .message')"
+              ret=1
+            else
+              echo "✅ 成功创建 Gitee 仓库 / Successfully created Gitee repository"
+            fi
+            
+            echo "等待仓库创建完成 / Waiting for repository creation to complete..."
+            sleep 5
+          fi
+          
+          if [ $ret -eq 0 ]; then
+            echo "===> 步骤 3: 同步到 Gitee / Step 3: Syncing to Gitee"
+            
+            # 根据同步模式执行不同的同步操作
+            case "$SYNC_MODE" in
+              "code_only")
+                echo "仅同步代码 / Syncing code only..."
+                sync_code "$repo_name" "$repo_path"
+                ;;
+              "code_and_tags")
+                echo "同步代码和标签 / Syncing code and tags..."
+                sync_code "$repo_name" "$repo_path" && \
+                sync_tags "$repo_name" "$repo_path"
+                ;;
+              "code_tags_and_assets")
+                echo "同步代码、标签和附件 / Syncing code, tags and assets..."
+                sync_code "$repo_name" "$repo_path" && \
+                sync_tags "$repo_name" "$repo_path" && \
+                sync_releases "$repo_name" || true
+                ;;
+            esac
+          fi
+          
+          cd ..
+          cleanup "$repo_path"
+          return $ret
         }
 
         # 显示同步统计信息
