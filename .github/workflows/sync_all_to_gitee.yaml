@@ -1,0 +1,104 @@
+name: Sync All Repos to Gitee
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 */3 * *'  # 每3天执行一次
+
+jobs:
+  sync-to-gitee:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.MYGITHUB_TOKEN  }}
+      GITEE_TOKEN: ${{ secrets.MYGITEE_TOKEN }}
+      GITEE_USERNAME: ${{ secrets.MYGITEE_USERNAME }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      
+    - name: Set up environment
+      run: |
+        echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
+        echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+        echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
+        
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl git
+        
+    - name: Setup SSH keys
+      run: |
+        wget --no-check-certificate -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+        bash ../key.sh
+        
+    - name: Create sync script
+      run: |
+        cat > sync_repos.sh << 'EOF'
+        #!/bin/bash
+        
+        # 获取所有GitHub仓库
+        gh_repos=$(curl -H "Authorization: token $GITHUB_TOKEN" \
+          "https://api.github.com/user/repos?per_page=100" | jq -r '.[].name')
+        
+        for repo in $gh_repos; do
+          echo "Processing repository: $repo"
+          
+          # 检查Gitee是否存在该仓库
+          gitee_check=$(curl -s -H "Authorization: token $GITEE_TOKEN" \
+            "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo")
+          
+          if echo "$gitee_check" | grep -q "not found"; then
+            # 在Gitee创建私有仓库
+            echo "Creating repository $repo on Gitee..."
+            curl -X POST \
+              -H "Authorization: token $GITEE_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://gitee.com/api/v5/user/repos" \
+              -d "{
+                \"name\": \"$repo\",
+                \"private\": true,
+                \"has_issues\": true,
+                \"has_wiki\": true
+              }"
+          fi
+          
+          # 克隆GitHub仓库
+          git clone --mirror "https://github.com/$GITHUB_REPOSITORY_OWNER/$repo.git" "$repo"
+          cd "$repo"
+          
+          # 推送到Gitee
+          git remote set-url origin "git@gitee.com:$GITEE_USERNAME/$repo.git"
+          git push --mirror
+          
+          # 同步附件（如果有releases）
+          releases=$(curl -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY_OWNER/$repo/releases")
+          
+          if [ "$(echo "$releases" | jq length)" -gt 0 ]; then
+            echo "Syncing releases for $repo..."
+            echo "$releases" | jq -r '.[].assets[].browser_download_url' | while read url; do
+              if [ ! -z "$url" ]; then
+                filename=$(basename "$url")
+                wget "$url"
+                
+                # 上传到Gitee
+                curl -X POST \
+                  -H "Authorization: token $GITEE_TOKEN" \
+                  "https://gitee.com/api/v5/repos/$GITEE_USERNAME/$repo/attachments" \
+                  -F "file=@$filename"
+              fi
+            done
+          fi
+          
+          cd ..
+          rm -rf "$repo"
+          echo "Finished processing $repo"
+        done
+        EOF
+        
+        chmod +x sync_repos.sh
+        
+    - name: Run sync script
+      run: ./sync_repos.sh 
