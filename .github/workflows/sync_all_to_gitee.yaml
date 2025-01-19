@@ -101,8 +101,7 @@ jobs:
           local repo_name=$1
           
           echo "清理前磁盘空间 / Disk space before cleanup:"
-          df -h /tmp /
-          ls -lah /tmp/
+          df -h /
           
           echo "清理临时文件和目录 / Cleaning up temporary files and directories..."
           
@@ -136,8 +135,7 @@ jobs:
           find /tmp -maxdepth 1 -type f \( -name "*.apk" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.jar" -o -name "*.tmp" \) -delete
           
           echo "清理后磁盘空间 / Disk space after cleanup:"
-          df -h /tmp /
-          ls -lah /tmp/
+          df -h /
           
           # 验证清理结果
           if [ -d "$mirror_path" ] || [ -d "$temp_dir" ]; then
@@ -196,12 +194,34 @@ jobs:
             if git reset --hard "github/$branch" 2>/dev/null; then
               echo "已重置到最新状态 / Reset to latest state: $branch"
               
-              # 强制推送到 Gitee
-              if timeout 300 git push -f gitee "HEAD:$branch" 2>&1; then
-                echo "✅ 成功同步分支 / Successfully synced branch: $branch"
-              else
-                echo "❌ 推送分支失败 / Failed to push branch: $branch"
-                echo "错误详情 / Error details:"
+              # 强制推送到 Gitee，添加重试机制
+              local max_retries=3
+              local retry_count=0
+              local push_success=false
+              
+              while [ $retry_count -lt $max_retries ] && [ "$push_success" = "false" ]; do
+                if [ $retry_count -gt 0 ]; then
+                  echo "第 $((retry_count + 1)) 次尝试推送 / Retry attempt $((retry_count + 1)) for $branch"
+                  sleep $((retry_count * 5))
+                fi
+                
+                if timeout 300 git push -f gitee "HEAD:$branch" 2>&1; then
+                  echo "✅ 成功同步分支 / Successfully synced branch: $branch"
+                  push_success=true
+                  break
+                else
+                  retry_count=$((retry_count + 1))
+                  if [ $retry_count -lt $max_retries ]; then
+                    echo "⚠️ 推送失败，将重试 / Push failed, will retry: $branch"
+                    echo "错误详情 / Error details:"
+                    git push -f gitee "HEAD:$branch" 2>&1 || true
+                  fi
+                fi
+              done
+              
+              if [ "$push_success" = "false" ]; then
+                echo "❌ 推送分支失败（已重试 $max_retries 次）/ Push failed after $max_retries retries: $branch"
+                echo "最后一次错误详情 / Last error details:"
                 git push -f gitee "HEAD:$branch" 2>&1 || true
                 failed_branches="$failed_branches\n$branch"
                 ret=1
