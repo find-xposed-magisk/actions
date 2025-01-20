@@ -153,6 +153,82 @@ jobs:
           git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
         }
 
+        # 检查仓库大小函数
+        check_repo_size() {
+          local repo_name=$1
+          local size_limit_mb=1024  # Gitee 免费版仓库大小限制为 1GB
+          
+          echo "检查仓库大小 / Checking repository size..."
+          
+          # 获取仓库大小（以KB为单位）
+          local size_kb=$(du -sk "$repo_path" 2>/dev/null | cut -f1)
+          if [ -z "$size_kb" ]; then
+            echo "⚠️ 无法获取仓库大小 / Unable to get repository size"
+            return 0
+          fi
+          
+          # 转换为MB
+          local size_mb=$((size_kb / 1024))
+          echo "仓库大小 / Repository size: ${size_mb}MB"
+          
+          if [ $size_mb -gt $size_limit_mb ]; then
+            echo "⚠️ 仓库超出 Gitee 免费版大小限制 / Repository exceeds Gitee free tier size limit"
+            echo "当前大小 / Current size: ${size_mb}MB"
+            echo "限制大小 / Size limit: ${size_limit_mb}MB"
+            return 1
+          fi
+          
+          return 0
+        }
+
+        # 清理仓库 releases 附件函数
+        clean_release_assets() {
+          local repo_name=$1
+          local owner=${repo_name%/*}
+          local repo=${repo_name#*/}
+          
+          echo "清理仓库 Releases 附件 / Cleaning repository release assets..."
+          
+          # 获取所有 releases
+          local releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${repo_name}/releases")
+          
+          if [ -z "$releases" ] || [ "$(echo "$releases" | jq length)" -eq "0" ]; then
+            echo "未找到 Releases / No releases found"
+            return 0
+          fi
+          
+          echo "找到 $(echo "$releases" | jq length) 个 Releases / Found $(echo "$releases" | jq length) releases"
+          
+          # 遍历所有 releases 的附件
+          echo "$releases" | jq -c '.[]' | while read -r release; do
+            local tag_name=$(echo "$release" | jq -r '.tag_name')
+            local assets=$(echo "$release" | jq -c '.assets[]')
+            
+            if [ -n "$assets" ]; then
+              echo "清理 Release ${tag_name} 的附件 / Cleaning assets for release ${tag_name}"
+              echo "$assets" | while read -r asset; do
+                local asset_id=$(echo "$asset" | jq -r '.id')
+                local asset_name=$(echo "$asset" | jq -r '.name')
+                local asset_size=$(echo "$asset" | jq -r '.size')
+                
+                # 转换为MB
+                local size_mb=$((asset_size / 1048576))
+                echo "附件: ${asset_name} (${size_mb}MB)"
+                
+                # 删除大于 50MB 的附件
+                if [ $size_mb -gt 50 ]; then
+                  echo "删除大附件 / Deleting large asset: ${asset_name} (${size_mb}MB)"
+                  curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                    "https://api.github.com/repos/${repo_name}/releases/assets/${asset_id}"
+                fi
+              done
+            fi
+          done
+          
+          return 0
+        }
+
         # 同步代码函数 - 使用 reset --hard 加速同步
         sync_code() {
           local repo_name=$1
@@ -161,6 +237,30 @@ jobs:
           local failed_branches=""
           
           echo "准备同步分支代码 / Preparing to sync branch code..."
+          
+          # 检查仓库大小
+          if ! check_repo_size "$repo_name"; then
+            echo "仓库超出大小限制，尝试清理 Releases 附件 / Repository exceeds size limit, attempting to clean release assets..."
+            
+            # 尝试清理 releases 附件
+            if clean_release_assets "$repo_name"; then
+              echo "清理完成，重新检查大小 / Cleanup completed, rechecking size..."
+              
+              # 再次检查大小
+              if ! check_repo_size "$repo_name"; then
+                echo "❌ 清理后仍超出限制，跳过同步 / Still exceeds limit after cleanup, skipping sync"
+                echo "建议：/ Suggestions:"
+                echo "1. 升级到 Gitee 企业版 / Upgrade to Gitee Enterprise"
+                echo "2. 手动清理大文件 / Manually clean large files"
+                return 1
+              else
+                echo "✅ 清理成功，继续同步 / Cleanup successful, continuing sync"
+              fi
+            else
+              echo "❌ 清理失败，跳过同步 / Cleanup failed, skipping sync"
+              return 1
+            fi
+          fi
           
           # 创建临时目录
           local temp_dir="/tmp/temp_${repo_name##*/}"
@@ -420,6 +520,8 @@ jobs:
         # 导出所有函数到环境变量中
         declare -fx cleanup
         declare -fx get_visible_refs
+        declare -fx check_repo_size
+        declare -fx clean_release_assets
         declare -fx sync_code
         declare -fx sync_tags
         declare -fx sync_releases
