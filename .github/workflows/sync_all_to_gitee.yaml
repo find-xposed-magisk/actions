@@ -150,7 +150,21 @@ jobs:
         # 获取可见引用函数
         get_visible_refs() {
           local ref_type=$1  # "heads" 或 "tags"
-          git for-each-ref --format='%(refname)' "refs/${ref_type}/*" | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
+          local repo_path=$2
+          
+          echo "获取引用类型 / Getting references type: $ref_type"
+          
+          # 确保在正确的目录中执行命令
+          cd "$repo_path"
+          
+          # 使用 ls-remote 获取远程引用
+          if [ "$ref_type" = "heads" ]; then
+            echo "获取远程分支列表 / Getting remote branches..."
+            git ls-remote --heads origin | cut -f2 | sed 's|refs/heads/||' | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
+          else
+            echo "获取标签列表 / Getting tags..."
+            git ls-remote --tags origin | cut -f2 | sed 's|refs/tags/||' | grep -v "refs/pull/" | grep -v "refs/gh-pages/"
+          fi
         }
 
         # 检查仓库大小函数
@@ -249,12 +263,7 @@ jobs:
               # 再次检查大小
               if ! check_repo_size "$repo_name"; then
                 echo "❌ 清理后仍超出限制，跳过同步 / Still exceeds limit after cleanup, skipping sync"
-                echo "建议：/ Suggestions:"
-                echo "1. 升级到 Gitee 企业版 / Upgrade to Gitee Enterprise"
-                echo "2. 手动清理大文件 / Manually clean large files"
                 return 1
-              else
-                echo "✅ 清理成功，继续同步 / Cleanup successful, continuing sync"
               fi
             else
               echo "❌ 清理失败，跳过同步 / Cleanup failed, skipping sync"
@@ -272,15 +281,20 @@ jobs:
           git remote add gitee "git@gitee.com:${GITEE_USERNAME}/${repo_name##*/}.git"
           git remote add github "https://x-access-token:${GITHUB_TOKEN}@github.com/${repo_name}.git"
           
-          # 获取所有分支列表（排除隐藏引用）
-          local branches=$(cd "$repo_path" && get_visible_refs "heads" | sed 's|refs/heads/||')
+          # 获取所有分支列表
+          echo "获取 GitHub 分支列表 / Getting GitHub branches..."
+          local branches=$(get_visible_refs "heads" "$repo_path")
           
-          echo "获取到的分支列表 / Fetched branches list:"
+          echo "发现的分支列表 / Found branches:"
           echo "$branches"
           
           # 从 GitHub 获取所有分支
           echo "从 GitHub 获取所有分支 / Fetching all branches from GitHub..."
-          git fetch github --quiet
+          git fetch github --quiet --all
+          
+          # 获取 Gitee 现有分支
+          echo "获取 Gitee 现有分支 / Getting existing Gitee branches..."
+          git fetch gitee --quiet || true
           
           # 遍历处理每个分支
           echo "$branches" | while read branch; do
@@ -289,6 +303,12 @@ jobs:
             fi
             
             echo "处理分支 / Processing branch: $branch"
+            
+            # 检查分支是否存在于 GitHub
+            if ! git rev-parse --verify "github/$branch" >/dev/null 2>&1; then
+              echo "⚠️ 分支在 GitHub 上不存在，跳过 / Branch does not exist on GitHub, skipping: $branch"
+              continue
+            fi
             
             # 重置到 GitHub 分支的最新状态
             if git reset --hard "github/$branch" 2>/dev/null; then
@@ -303,13 +323,9 @@ jobs:
                 if [ $retry_count -gt 0 ]; then
                   echo "第 $((retry_count + 1)) 次尝试推送 / Retry attempt $((retry_count + 1)) for $branch"
                   sleep $((retry_count * 5))
-                  
-                  # 重试前先获取最新状态
-                  echo "获取 Gitee 仓库最新状态 / Fetching latest state from Gitee..."
                   git fetch gitee || true
                 fi
                 
-                # 显示完整的推送命令和错误信息
                 echo "执行推送命令 / Executing push command: git push -f gitee HEAD:$branch"
                 if push_output=$(git push -f gitee "HEAD:$branch" 2>&1); then
                   echo "✅ 成功同步分支 / Successfully synced branch: $branch"
@@ -317,31 +333,24 @@ jobs:
                   break
                 else
                   retry_count=$((retry_count + 1))
-                  if [ $retry_count -lt $max_retries ]; then
-                    echo "⚠️ 推送失败，将重试 / Push failed, will retry: $branch"
-                    echo "错误详情 / Error details:"
-                    echo "$push_output"
-                    
-                    # 检查具体错误类型
-                    if echo "$push_output" | grep -q "shallow update not allowed"; then
-                      echo "检测到浅克隆错误，尝试完整克隆 / Detected shallow clone error, trying full clone..."
-                      git fetch github --unshallow || true
-                    fi
+                  echo "⚠️ 推送失败，将重试 / Push failed, will retry: $branch"
+                  echo "错误详情 / Error details:"
+                  echo "$push_output"
+                  
+                  if echo "$push_output" | grep -q "shallow update not allowed"; then
+                    echo "检测到浅克隆错误，尝试完整克隆 / Detected shallow clone error, trying full clone..."
+                    git fetch github --unshallow || true
                   fi
                 fi
               done
               
               if [ "$push_success" = "false" ]; then
                 echo "❌ 推送分支失败（已重试 $max_retries 次）/ Push failed after $max_retries retries: $branch"
-                echo "最后一次错误详情 / Last error details:"
-                echo "$push_output"
                 failed_branches="$failed_branches\n$branch"
                 ret=1
               fi
             else
               echo "❌ 重置分支失败 / Failed to reset branch: $branch"
-              echo "错误详情 / Error details:"
-              git reset --hard "github/$branch" 2>&1 || true
               failed_branches="$failed_branches\n$branch"
               ret=1
             fi
@@ -368,7 +377,7 @@ jobs:
           local failed_refs=""
           
           echo "推送标签 / Pushing tags..."
-          get_visible_refs "tags" | while read ref; do
+          get_visible_refs "tags" "$repo_path" | while read ref; do
             echo "推送标签 / Pushing tag: $ref"
             if ! push_ref "$repo_name" "$ref"; then
               failed_refs="$failed_refs\n$ref"
