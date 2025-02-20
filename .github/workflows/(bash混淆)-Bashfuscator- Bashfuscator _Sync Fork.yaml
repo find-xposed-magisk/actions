@@ -1,7 +1,7 @@
 # https://github.com/find-xposed-magisk/Obfuscation
 # https://github.com/Bashfuscator/Bashfuscator
 # 一个完全可配置和可扩展的 Bash 混淆框架。此工具旨在帮助红队和蓝队
-name: (bash混淆)-Obfuscation- Obfuscation _Sync Fork.yaml
+name: (bash混淆)-Bashfuscator- Bashfuscator _Sync Fork.yaml
 
 # 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
 # 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
