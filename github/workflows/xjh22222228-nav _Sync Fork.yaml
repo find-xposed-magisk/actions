@@ -1,0 +1,156 @@
+# https://github.com/find-xposed-magisk/nav
+# https://github.com/xjh22222228/nav
+# 导航
+name: xjh22222228-nav _Sync Fork.yaml
+
+# 需要填写变量 ORIGINAL_OWNER ORIGINAL_REPOSITORY UPSTREAM_BRANCH MY_BRANCH
+# 需要创建环境变量 MYGITHUB_TOKEN MYGITHUB_USERNAME
+env:
+  ORIGINAL_OWNER: xjh22222228
+  ORIGINAL_REPOSITORY: nav
+  MYORIGINAL_REPOSITORY: nav
+  UPSTREAM_BRANCH: main
+  MY_BRANCH: backup
+  DOCKER_BUILD: NO
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [1]
+  schedule:
+    - cron: '0 */2 * * *'
+  
+jobs:
+  sync-fork:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
+    steps:
+    - name: set env
+      run: |
+          echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
+          echo "MYPUSH1=${{ secrets.MYPUSH1 }}" >> $GITHUB_ENV
+          echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
+          echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
+          echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
+          echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
+          echo "UPSTREAM_BRANCH=${{ env.UPSTREAM_BRANCH }}" >> $GITHUB_ENV
+          echo "MY_BRANCH=${{ env.MY_BRANCH }}" >> $GITHUB_ENV
+          echo "DOCKER_BUILD=${{ env.DOCKER_BUILD }}" >> $GITHUB_ENV
+          echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
+          echo "repository=${{ github.repository }}" >> $GITHUB_ENV
+          echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
+          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
+
+    - name: Use Node.js 16
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: 安装依赖 Install dependencies
+      run: sudo apt-get install jq curl
+
+    - name: key
+      run: |
+          wget --no-check-certificate -O ../key.sh https://git.blog.jiangqing.xyz/shell/linux/actions/key.sh
+          bash ../key.sh
+
+    - name: 克隆重置 (Clone and Reset)
+      run: |
+          wget --no-check-certificate -O ../clone_reset.sh https://git.blog.jiangqing.xyz/shell/linux/actions/clone_reset.sh
+          bash ../clone_reset.sh
+          
+    - id: push
+      name: 推送 (Push)
+      run: |
+          wget --no-check-certificate -O ../push.sh https://git.blog.jiangqing.xyz/shell/linux/actions/push.sh
+          bash ../push.sh
+
+    - name: Check if Push Failed
+      run: |
+        if [[ "${{ steps.push.outcome }}" == "failure" ]]; then
+          echo "失败退出了"
+          exit 1
+        elif [[ "${{ steps.push.outcome }}" == "cancelled" ]]; then
+          echo "取消了"
+          exit 1
+        fi
+
+  sync-release:
+    # needs: sync-fork
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.MYGITHUB_TOKEN }}
+    steps:
+    - name: set env
+      run: |
+          echo "CURL_HEAD=${{ secrets.CURL_HEAD }}" >> $GITHUB_ENV
+          echo "MYPUSH1=${{ secrets.MYPUSH1 }}" >> $GITHUB_ENV
+          echo "HIFLOW_PUSH1=${{ secrets.HIFLOW_PUSH1 }}" >> $GITHUB_ENV
+          echo "ORIGINAL_OWNER=${{ env.ORIGINAL_OWNER }}" >> $GITHUB_ENV
+          echo "ORIGINAL_REPOSITORY=${{ env.ORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
+          echo "MYORIGINAL_REPOSITORY=${{ env.MYORIGINAL_REPOSITORY }}" >> $GITHUB_ENV
+          echo "UPSTREAM_BRANCH=${{ env.UPSTREAM_BRANCH }}" >> $GITHUB_ENV
+          echo "MY_BRANCH=${{ env.MY_BRANCH }}" >> $GITHUB_ENV
+          echo "DOCKER_BUILD=${{ env.DOCKER_BUILD }}" >> $GITHUB_ENV
+          echo "repository_owner=${{ github.repository_owner }}" >> $GITHUB_ENV
+          echo "repository=${{ github.repository }}" >> $GITHUB_ENV
+          echo "PUSH_TOKEN=${{ secrets.PUSH_TOKEN }}" >> $GITHUB_ENV
+          echo "GH_TOKEN=${{ secrets.MYGITHUB_TOKEN }}" >> $GITHUB_ENV
+          echo "MYPASSWD=${{ secrets.MYPASSWD }}" >> $GITHUB_ENV
+          echo "MYSALT=${{ secrets.MYSALT }}" >> $GITHUB_ENV
+    - name: Use Node.js 16
+      uses: actions/setup-node@v2
+      with:
+        node-version: 16
+
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: 安装依赖 Install dependencies
+      run: sudo apt-get install jq curl
+
+    - name: Get Latest Release
+      id: latest_release
+      run: |
+          wget --no-check-certificate -O ../latest_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/latest_release.sh
+          bash ../latest_release.sh
+
+    - name: Check if release exists and is new
+      id: check_release
+      run: |
+          wget --no-check-certificate -O ../check_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/check_release.sh
+          bash ../check_release.sh
+
+    - name: Create Release
+      id: create_release
+      if: ${{ env.skip == 'false' && env.skip == 'false' }}
+      run: |
+        wget --no-check-certificate -O ../create_release.sh https://git.blog.jiangqing.xyz/shell/linux/actions/create_release.sh
+        bash ../create_release.sh
+
+    - name: download-update
+      if: ${{ env.skip_download == 'false'}}
+      run: |
+        wget --no-check-certificate -O ../download_update.sh https://git.blog.jiangqing.xyz/shell/linux/actions/download_update.sh
+        bash ../download_update.sh
+
+
+    - name: Check if create_release Failed
+      run: |
+        if [[ "${{ steps.create_release.outcome }}" == "failure" ]]; then
+          echo "失败退出了"
+          exit 1
+        elif [[ "${{ steps.create_release.outcome }}" == "cancelled" ]]; then
+          echo "取消了"
+          exit 1
+        fi
