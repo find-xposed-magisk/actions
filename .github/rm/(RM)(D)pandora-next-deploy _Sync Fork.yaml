@@ -16,7 +16,7 @@ on:
   repository_dispatch:
     types: [1]
   # schedule:
-  #   - cron: '0 */2 * * *'
+  #   - cron: '0 */12 * * *'
 
 jobs:
   sync-fork:
