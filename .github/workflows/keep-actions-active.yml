@@ -1,0 +1,41 @@
+name: Keep Actions Active
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 3 1 * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: keep-actions-active
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update keepalive marker
+        run: |
+          {
+            echo "Last keepalive: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > keepalive.txt
+
+      - name: Commit keepalive marker
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain -- keepalive.txt)" ]; then
+            echo "No keepalive changes."
+            exit 0
+          fi
+
+          git add keepalive.txt
+          git commit -m "chore: keep actions active"
+          git push
